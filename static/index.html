@@ -192,7 +192,14 @@ tr:hover td{background:rgba(108,99,255,0.05)}
     <!-- COMPANIES -->
     <div id="page-companies" class="page hidden">
       <h1>Поиск компаний</h1>
-      <div class="filters">
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <input id="ai-search-input" style="flex:1;font-size:15px;padding:12px 16px" placeholder="Опишите, какие компании ищете, например: «IT-компании в Москве» или «нефтяные компании с выручкой от 10 млрд»">
+        <button class="btn-accent" onclick="aiSearchCompanies()" style="white-space:nowrap;padding:12px 20px;font-size:15px">AI Поиск</button>
+      </div>
+      <div id="ai-search-status" style="margin-bottom:12px;font-size:13px;color:var(--text-dim)"></div>
+      <details style="margin-bottom:16px">
+        <summary style="cursor:pointer;color:var(--text-dim);font-size:13px">Расширенные фильтры</summary>
+      <div class="filters" style="margin-top:10px">
         <div class="filter-group"><label>Название</label><input id="f-name" placeholder="ТехноСофт..."></div>
         <div class="filter-group"><label>ОКВЭД</label><input id="f-okved" placeholder="62"></div>
         <div class="filter-group"><label>Регион</label><input id="f-region" placeholder="Москва"></div>
@@ -204,6 +211,7 @@ tr:hover td{background:rgba(108,99,255,0.05)}
         <button class="btn-primary" onclick="searchCompanies()" style="align-self:end">Поиск</button>
         <button class="btn-accent" onclick="showModal('add-company')" style="align-self:end">+ Добавить</button>
       </div>
+      </details>
       <div id="companies-results"><p class="loading">Введите параметры поиска</p></div>
     </div>
 
@@ -357,6 +365,13 @@ tr:hover td{background:rgba(108,99,255,0.05)}
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-company-detail">
+  <div class="modal" style="max-width:800px">
+    <div id="company-detail-content"></div>
+    <div class="form-actions"><button class="btn-ghost" onclick="closeModals()">Закрыть</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-contact-detail">
   <div class="modal" style="max-width:700px">
     <div id="contact-detail-content"></div>
@@ -457,6 +472,20 @@ async function loadDashboard(){
 }
 
 // --- Companies ---
+function renderCompaniesTable(data,showTotal){
+  if(!data.items.length){document.getElementById('companies-results').innerHTML='<p class="loading">Ничего не найдено</p>';return}
+  document.getElementById('companies-results').innerHTML=`
+    <table><thead><tr><th>Компания</th><th>ИНН</th><th>ОКВЭД</th><th>Регион</th><th>Штат</th><th>Выручка</th><th>Intent</th></tr></thead><tbody>
+    ${data.items.map(c=>`<tr onclick="showCompanyDetail(${c.id})" style="cursor:pointer">
+      <td><strong>${c.name}</strong>${c.website?'<br><span style="font-size:11px;color:var(--text-dim)">'+c.website+'</span>':''}</td>
+      <td style="font-size:12px">${c.inn||'—'}</td><td>${c.okved_main||'—'}</td><td>${c.region||'—'}</td>
+      <td>${c.employee_count||'—'}</td><td>${c.revenue_range||'—'}</td>
+      <td><span class="badge ${c.intent_score>=80?'badge-hot':c.intent_score>=50?'badge-warm':'badge-cold'}">${c.intent_score}</span></td>
+    </tr>`).join('')}
+    </tbody></table>
+    ${showTotal?'<p style="margin-top:8px;font-size:12px;color:var(--text-dim)">Найдено: '+data.total+' | Страница '+data.page+'</p>':''}`;
+}
+
 async function searchCompanies(){
   const params=new URLSearchParams();
   const q=document.getElementById('f-name').value;if(q)params.set('q',q);
@@ -467,18 +496,73 @@ async function searchCompanies(){
   const intent=document.getElementById('f-intent').value;if(intent)params.set('intent_min',intent);
   try{
     const data=await apiFetch('/companies/search?'+params.toString());
-    if(!data.items.length){document.getElementById('companies-results').innerHTML='<p class="loading">Ничего не найдено</p>';return}
-    document.getElementById('companies-results').innerHTML=`
-      <table><thead><tr><th>Компания</th><th>ИНН</th><th>ОКВЭД</th><th>Регион</th><th>Штат</th><th>Выручка</th><th>Intent</th></tr></thead><tbody>
-      ${data.items.map(c=>`<tr>
-        <td><strong>${c.name}</strong>${c.website?'<br><span style="font-size:11px;color:var(--text-dim)">'+c.website+'</span>':''}</td>
-        <td style="font-size:12px">${c.inn||'—'}</td><td>${c.okved_main||'—'}</td><td>${c.region||'—'}</td>
-        <td>${c.employee_count||'—'}</td><td>${c.revenue_range||'—'}</td>
-        <td><span class="badge ${c.intent_score>=80?'badge-hot':c.intent_score>=50?'badge-warm':'badge-cold'}">${c.intent_score}</span></td>
-      </tr>`).join('')}
-      </tbody></table>
-      <p style="margin-top:8px;font-size:12px;color:var(--text-dim)">Найдено: ${data.total} | Страница ${data.page}</p>`;
+    renderCompaniesTable(data,true);
   }catch(e){document.getElementById('companies-results').innerHTML='<p style="color:var(--danger)">'+e.message+'</p>'}
+}
+
+async function aiSearchCompanies(){
+  const q=document.getElementById('ai-search-input').value.trim();
+  if(!q){alert('Введите описание поиска');return}
+  const statusEl=document.getElementById('ai-search-status');
+  statusEl.textContent='Анализирую запрос...';
+  statusEl.style.color='var(--primary-light)';
+  try{
+    const data=await apiFetch('/companies/ai-search','POST',{query:q});
+    statusEl.textContent=`Найдено: ${data.total} компаний`;
+    statusEl.style.color='var(--accent)';
+    renderCompaniesTable(data,false);
+  }catch(e){statusEl.textContent=e.message;statusEl.style.color='var(--danger)'}
+}
+
+async function showCompanyDetail(id){
+  try{
+    const[company,contacts]=await Promise.all([
+      apiFetch('/companies/'+id),
+      apiFetch('/contacts?company_id='+id),
+    ]);
+    document.getElementById('company-detail-content').innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:20px">
+        <div>
+          <h2 style="margin-bottom:4px">${company.name}</h2>
+          <p style="color:var(--text-dim);font-size:13px">${company.region||''} ${company.city?'· '+company.city:''}</p>
+        </div>
+        <span class="badge ${company.intent_score>=80?'badge-hot':company.intent_score>=50?'badge-warm':'badge-cold'}" style="font-size:14px;padding:6px 14px">Intent: ${company.intent_score}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px">
+        <div class="card" style="padding:12px"><div class="label">ИНН</div><div style="font-weight:600;font-size:15px;margin-top:4px">${company.inn||'—'}</div></div>
+        <div class="card" style="padding:12px"><div class="label">ОКВЭД</div><div style="font-weight:600;font-size:15px;margin-top:4px">${company.okved_main||'—'}</div></div>
+        <div class="card" style="padding:12px"><div class="label">Штат</div><div style="font-weight:600;font-size:15px;margin-top:4px">${company.employee_count?company.employee_count.toLocaleString('ru'):'—'}</div></div>
+        <div class="card" style="padding:12px"><div class="label">Выручка</div><div style="font-weight:600;font-size:15px;margin-top:4px">${company.revenue_range||'—'}</div></div>
+        ${company.website?'<div class="card" style="padding:12px"><div class="label">Сайт</div><div style="font-size:13px;margin-top:4px"><a href="'+company.website+'" target="_blank">'+company.website+'</a></div></div>':''}
+      </div>
+      <h3 style="margin-bottom:12px">Контакты (${contacts.length})</h3>
+      ${contacts.length?`
+        <table><thead><tr><th>Имя</th><th>Email</th><th>Должность</th><th>Телефон</th><th>Score</th><th>Действия</th></tr></thead><tbody>
+        ${contacts.map(c=>`<tr>
+          <td><strong>${c.first_name||''} ${c.last_name||''}</strong></td>
+          <td style="font-size:12px">${c.email}</td>
+          <td>${c.title||'—'}</td>
+          <td style="font-size:12px">${c.phone||'—'}</td>
+          <td>${c.score!=null?'<span class="badge badge-score">'+c.score+'</span>':'—'}</td>
+          <td>
+            <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="event.stopPropagation();closeModals();showContactDetail(${c.id})">Детали</button>
+            <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="event.stopPropagation();scoreContactFromCompany(${c.id},${id})">Score</button>
+            <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="event.stopPropagation();enrichContactFromCompany(${c.id},${id})">Enrich</button>
+          </td>
+        </tr>`).join('')}
+        </tbody></table>`
+      :'<p style="color:var(--text-dim)">Контакты не найдены. Добавьте контакты вручную или обогатите данные.</p>'}
+    `;
+    showModal('company-detail');
+  }catch(e){alert(e.message)}
+}
+
+async function scoreContactFromCompany(contactId,companyId){
+  try{const r=await apiFetch('/contacts/'+contactId+'/score','POST');alert('Score: '+r.score+' (v'+r.version+')');showCompanyDetail(companyId)}catch(e){alert(e.message)}
+}
+
+async function enrichContactFromCompany(contactId,companyId){
+  try{await apiFetch('/contacts/'+contactId+'/enrich','POST');await loadUser();showCompanyDetail(companyId)}catch(e){alert(e.message)}
 }
 
 async function createCompany(){
@@ -653,6 +737,7 @@ async function upgradePlan(plan){
 function showModal(id){document.getElementById('modal-'+id).classList.add('show')}
 function closeModals(){document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('show'))}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModals()});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='ai-search-input')aiSearchCompanies()});
 
 // --- Reuse / Knowledge Base ---
 const REUSE_DATA=[

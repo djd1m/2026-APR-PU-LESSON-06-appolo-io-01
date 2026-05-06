@@ -149,8 +149,7 @@ async def enrich_contact(
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
 
-    from datetime import datetime, timezone
-    contact.enriched_at = datetime.now(timezone.utc)
+    contact.enriched_at = datetime.utcnow()
     contact.email_confidence = 0.85
 
     await db.commit()

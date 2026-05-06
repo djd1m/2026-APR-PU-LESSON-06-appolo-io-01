@@ -69,8 +69,8 @@ class ScoringService:
         return min(100.0, total)
 
     def _fit_score(self, c: dict) -> float:
-        sen = c.get("seniority", "").lower().strip()
-        size = c.get("company_size", "").strip()
+        sen = (c.get("seniority") or "").lower().strip()
+        size = (c.get("company_size") or "").strip()
         return (SENIORITY_WEIGHTS.get(sen, 20) + SIZE_WEIGHTS.get(size, 30)) / 2.0
 
     def _recency_score(self, activities: List[dict]) -> float:
