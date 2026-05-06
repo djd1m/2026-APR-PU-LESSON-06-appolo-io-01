@@ -544,12 +544,12 @@ async function loadDashboard(){
   try{
     const[overview,signals]=await Promise.all([apiFetch('/analytics/overview'),apiFetch('/intents/hot?limit=8')]);
     document.getElementById('dashboard-cards').innerHTML=`
-      <div class="card"><div class="label">Компании</div><div class="value primary">${overview.companies}</div></div>
-      <div class="card"><div class="label">Контакты</div><div class="value accent">${overview.contacts}</div></div>
-      <div class="card"><div class="label">Active Sequences</div><div class="value">${overview.active_enrollments}</div></div>
-      <div class="card"><div class="label">Open Rate</div><div class="value warning">${overview.open_rate}%</div></div>
-      <div class="card"><div class="label">Reply Rate</div><div class="value">${overview.reply_rate}%</div></div>
-      <div class="card"><div class="label">Кредиты</div><div class="value accent">${overview.credits_remaining}</div></div>
+      <div class="card" style="cursor:pointer" onclick="navigate('companies')"><div class="label">Компании</div><div class="value primary">${overview.companies}</div></div>
+      <div class="card" style="cursor:pointer" onclick="navigate('contacts')"><div class="label">Контакты</div><div class="value accent">${overview.contacts}</div></div>
+      <div class="card" style="cursor:pointer" onclick="navigate('sequences')"><div class="label">Active Sequences</div><div class="value">${overview.active_enrollments}</div></div>
+      <div class="card" style="cursor:pointer" onclick="navigate('analytics')"><div class="label">Open Rate</div><div class="value warning">${overview.open_rate}%</div></div>
+      <div class="card" style="cursor:pointer" onclick="navigate('analytics')"><div class="label">Reply Rate</div><div class="value">${overview.reply_rate}%</div></div>
+      <div class="card" style="cursor:pointer" onclick="navigate('billing')"><div class="label">Кредиты</div><div class="value accent">${overview.credits_remaining}</div></div>
     `;
     const icons={hiring:'hiring',tender:'tender',revenue_growth:'revenue',new_ceo:'ceo',media_mention:'media'};
     const emojis={hiring:'👥',tender:'📋',revenue_growth:'📈',new_ceo:'🔄',media_mention:'📰'};
@@ -1037,7 +1037,7 @@ async function loadAnalytics(){
       <div class="card"><div class="label">Reply Rate</div><div class="value">${overview.reply_rate}%</div></div>
     `;
     document.getElementById('top-leads-table').innerHTML=leads.length?`<table><thead><tr><th>#</th><th>Имя</th><th>Email</th><th>Должность</th><th>Score</th></tr></thead><tbody>
-      ${leads.map((l,i)=>`<tr><td>${i+1}</td><td><strong>${l.first_name||''} ${l.last_name||''}</strong></td><td style="font-size:12px">${l.email}</td><td>${l.title||'—'}</td><td><span class="badge badge-score">${l.score}</span></td></tr>`).join('')}
+      ${leads.map((l,i)=>`<tr onclick="showContactDetail(${l.id})" style="cursor:pointer"><td>${i+1}</td><td><strong>${l.first_name||''} ${l.last_name||''}</strong></td><td style="font-size:12px">${l.email}</td><td>${l.title||'—'}</td><td><span class="badge badge-score">${l.score}</span></td></tr>`).join('')}
     </tbody></table>`:'<p class="loading">Нет данных</p>';
   }catch(e){console.error(e)}
 }
