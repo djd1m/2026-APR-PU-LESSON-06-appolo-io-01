@@ -136,6 +136,16 @@ async def update_contact(
     return contact
 
 
+@router.delete("/{contact_id}", status_code=204)
+async def delete_contact(contact_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+    result = await db.execute(select(Contact).where(Contact.id == contact_id))
+    contact = result.scalar_one_or_none()
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    await db.delete(contact)
+    await db.commit()
+
+
 @router.post("/{contact_id}/score", response_model=ScoreResponse)
 async def score_contact(contact_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
     result = await db.execute(select(Contact).where(Contact.id == contact_id))

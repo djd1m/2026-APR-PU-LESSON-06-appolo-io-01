@@ -255,3 +255,44 @@ async def create_company(payload: CompanyCreate, db: AsyncSession = Depends(get_
     await db.commit()
     await db.refresh(company)
     return company
+
+
+class CompanyUpdate(BaseModel):
+    inn: Optional[str] = None
+    name: Optional[str] = None
+    okved_main: Optional[str] = None
+    industry: Optional[str] = None
+    region: Optional[str] = None
+    city: Optional[str] = None
+    employee_count: Optional[int] = None
+    revenue_range: Optional[str] = None
+    website: Optional[str] = None
+    description: Optional[str] = None
+
+
+@router.patch("/{company_id}", response_model=CompanyResponse)
+async def update_company(
+    company_id: int,
+    payload: CompanyUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    result = await db.execute(select(Company).where(Company.id == company_id))
+    company = result.scalar_one_or_none()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(company, field, value)
+    await db.commit()
+    await db.refresh(company)
+    return company
+
+
+@router.delete("/{company_id}", status_code=204)
+async def delete_company(company_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+    result = await db.execute(select(Company).where(Company.id == company_id))
+    company = result.scalar_one_or_none()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    await db.delete(company)
+    await db.commit()

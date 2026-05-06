@@ -374,6 +374,24 @@ tr:hover td{background:rgba(108,99,255,0.05)}
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-edit-company">
+  <div class="modal">
+    <h2>Редактировать компанию</h2>
+    <input type="hidden" id="ecp-id">
+    <div class="form-row"><label>Название *</label><input id="ecp-name"></div>
+    <div class="form-row"><label>ИНН</label><input id="ecp-inn" maxlength="12"></div>
+    <div class="form-row"><label>ОКВЭД</label><input id="ecp-okved"></div>
+    <div class="form-row"><label>Регион</label><input id="ecp-region"></div>
+    <div class="form-row"><label>Отрасль</label><input id="ecp-industry"></div>
+    <div class="form-row"><label>Штат</label><input id="ecp-employees" type="number"></div>
+    <div class="form-row"><label>Выручка</label>
+      <select id="ecp-revenue"><option value="">—</option><option>0-10M</option><option>10-50M</option><option>50-200M</option><option>200-500M</option><option>500M+</option><option>10B+</option></select>
+    </div>
+    <div class="form-row"><label>Сайт</label><input id="ecp-website"></div>
+    <div class="form-actions"><button class="btn-ghost" onclick="closeModals()">Отмена</button><button class="btn-primary" onclick="saveCompany()">Сохранить</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-edit-contact">
   <div class="modal">
     <h2>Редактировать контакт</h2>
@@ -590,7 +608,11 @@ async function showCompanyDetail(id){
           <h2 style="margin-bottom:4px">${company.name}</h2>
           <p style="color:var(--text-dim);font-size:13px">${company.region||''} ${company.city?'· '+company.city:''}</p>
         </div>
-        <span class="badge ${company.intent_score>=80?'badge-hot':company.intent_score>=50?'badge-warm':'badge-cold'}" style="font-size:14px;padding:6px 14px">Intent: ${company.intent_score}</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="btn-ghost" style="font-size:12px;padding:4px 10px" onclick="event.stopPropagation();editCompany(${company.id})">Ред.</button>
+          <button class="btn-danger" style="font-size:12px;padding:4px 10px" onclick="event.stopPropagation();deleteCompany(${company.id})">Удалить</button>
+          <span class="badge ${company.intent_score>=80?'badge-hot':company.intent_score>=50?'badge-warm':'badge-cold'}" style="font-size:14px;padding:6px 14px">Intent: ${company.intent_score}</span>
+        </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px">
         <div class="card" style="padding:12px"><div class="label">ИНН</div><div style="font-weight:600;font-size:15px;margin-top:4px">${company.inn||'—'}</div></div>
@@ -613,9 +635,10 @@ async function showCompanyDetail(id){
           <td>${c.score!=null?'<span class="badge badge-score">'+c.score+'</span>':'—'}</td>
           <td>
             <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="event.stopPropagation();editContact(${c.id},${id})">Ред.</button>
-            <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="event.stopPropagation();closeModals();showContactDetail(${c.id})">Детали</button>
+            <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="event.stopPropagation();showContactDetailFromCompany(${c.id},${id})">Детали</button>
             <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="event.stopPropagation();scoreContactFromCompany(${c.id},${id})">Score</button>
             <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="event.stopPropagation();enrichContactFromCompany(${c.id},${id})">Enrich</button>
+            <button class="btn-danger" style="font-size:12px;padding:4px 8px" onclick="event.stopPropagation();deleteContactFromCompany(${c.id},${id})">Удалить</button>
           </td>
         </tr>`).join('')}
         </tbody></table>`
@@ -645,7 +668,9 @@ async function loadCompanySelect(){
 
 function openAddContactForCompany(companyId,companyName){
   addContactForCompanyId=companyId;
-  closeModals();
+  _returnToCompanyId=null; // prevent closeModals from reopening company
+  document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('show'));
+  _returnToCompanyId=companyId; // set for cancel
   resetContactForm();
   // Pre-select company in dropdown
   loadCompanySelect().then(()=>{
@@ -666,6 +691,63 @@ function resetContactForm(){
   document.getElementById('nc-phone').value='';
   const sel=document.getElementById('nc-company');
   sel.value='';sel.disabled=false;
+}
+
+async function editCompany(id){
+  try{
+    const c=await apiFetch('/companies/'+id);
+    _returnToCompanyId=null;
+    document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('show'));
+    _returnToCompanyId=id; // set for cancel
+    document.getElementById('ecp-id').value=c.id;
+    document.getElementById('ecp-name').value=c.name||'';
+    document.getElementById('ecp-inn').value=c.inn||'';
+    document.getElementById('ecp-okved').value=c.okved_main||'';
+    document.getElementById('ecp-region').value=c.region||'';
+    document.getElementById('ecp-industry').value=c.industry||'';
+    document.getElementById('ecp-employees').value=c.employee_count||'';
+    document.getElementById('ecp-revenue').value=c.revenue_range||'';
+    document.getElementById('ecp-website').value=c.website||'';
+    showModal('edit-company');
+  }catch(e){alert(e.message)}
+}
+
+async function saveCompany(){
+  const id=document.getElementById('ecp-id').value;
+  const body={};
+  const name=document.getElementById('ecp-name').value;if(name)body.name=name;
+  const inn=document.getElementById('ecp-inn').value;body.inn=inn||null;
+  const okved=document.getElementById('ecp-okved').value;body.okved_main=okved||null;
+  const region=document.getElementById('ecp-region').value;body.region=region||null;
+  const industry=document.getElementById('ecp-industry').value;body.industry=industry||null;
+  const emp=document.getElementById('ecp-employees').value;body.employee_count=emp?parseInt(emp):null;
+  const rev=document.getElementById('ecp-revenue').value;body.revenue_range=rev||null;
+  const web=document.getElementById('ecp-website').value;body.website=web||null;
+  try{await apiFetch('/companies/'+id,'PATCH',body);_returnToCompanyId=null;closeModals();showCompanyDetail(parseInt(id))}catch(e){alert(e.message)}
+}
+
+async function deleteCompany(id){
+  if(!confirm('Удалить компанию? Это действие необратимо.'))return;
+  try{
+    await fetch(API+'/companies/'+id,{method:'DELETE',headers:{'Authorization':'Bearer '+token}});
+    _returnToCompanyId=null;closeModals();searchCompanies();
+  }catch(e){alert(e.message)}
+}
+
+async function deleteContact(id){
+  if(!confirm('Удалить контакт?'))return;
+  try{
+    await fetch(API+'/contacts/'+id,{method:'DELETE',headers:{'Authorization':'Bearer '+token}});
+    loadContacts();
+  }catch(e){alert(e.message)}
+}
+
+async function deleteContactFromCompany(contactId,companyId){
+  if(!confirm('Удалить контакт?'))return;
+  try{
+    await fetch(API+'/contacts/'+contactId,{method:'DELETE',headers:{'Authorization':'Bearer '+token}});
+    showCompanyDetail(companyId);
+  }catch(e){alert(e.message)}
 }
 
 async function createCompany(){
@@ -697,7 +779,8 @@ async function loadContacts(){
         <td><button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="editContact(${c.id})">Ред.</button>
         <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="showContactDetail(${c.id})">Детали</button>
         <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="scoreContact(${c.id})">Score</button>
-        <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="enrichContact(${c.id})">Enrich</button></td>
+        <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="enrichContact(${c.id})">Enrich</button>
+        <button class="btn-danger" style="font-size:12px;padding:4px 8px" onclick="deleteContact(${c.id})">Удалить</button></td>
       </tr>`).join('')}
       </tbody></table>`;
   }catch(e){document.getElementById('contacts-results').innerHTML='<p style="color:var(--danger)">'+e.message+'</p>'}
@@ -719,7 +802,8 @@ async function createContact(){
   const returnToCompany=addContactForCompanyId;
   try{
     await apiFetch('/contacts/','POST',body);
-    closeModals();
+    _returnToCompanyId=null;
+    document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('show'));
     if(returnToCompany){showCompanyDetail(returnToCompany)}
     else{loadContacts()}
   }catch(e){alert(e.message)}
@@ -729,7 +813,6 @@ async function createContact(){
 async function editContact(id,returnCompanyId){
   try{
     const contact=await apiFetch('/contacts/'+id);
-    // Load companies dropdown
     const sel=document.getElementById('ec-company');
     try{
       const data=await apiFetch('/companies/search?per_page=100');
@@ -745,7 +828,9 @@ async function editContact(id,returnCompanyId){
     document.getElementById('ec-seniority').value=contact.seniority||'';
     document.getElementById('ec-linkedin').value=contact.linkedin_url||'';
     document.getElementById('ec-phone').value=contact.phone||'';
-    closeModals();
+    _returnToCompanyId=null;
+    document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('show'));
+    _returnToCompanyId=returnCompanyId||null; // set for cancel
     showModal('edit-contact');
   }catch(e){alert(e.message)}
 }
@@ -765,7 +850,8 @@ async function saveContact(){
   const ph=document.getElementById('ec-phone').value;body.phone=ph||null;
   try{
     await apiFetch('/contacts/'+id,'PATCH',body);
-    closeModals();
+    _returnToCompanyId=null;
+    document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('show'));
     if(returnCompany){showCompanyDetail(parseInt(returnCompany))}
     else{loadContacts()}
   }catch(e){alert(e.message)}
@@ -777,6 +863,13 @@ async function scoreContact(id){
 
 async function enrichContact(id){
   try{await apiFetch('/contacts/'+id+'/enrich','POST');await loadUser();loadContacts()}catch(e){alert(e.message)}
+}
+
+async function showContactDetailFromCompany(contactId,companyId){
+  _returnToCompanyId=null;
+  document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('show'));
+  _returnToCompanyId=companyId;
+  await showContactDetail(contactId);
 }
 
 async function showContactDetail(id){
@@ -921,8 +1014,15 @@ async function upgradePlan(plan){
 }
 
 // --- Modals ---
+let _returnToCompanyId=null;
 function showModal(id){document.getElementById('modal-'+id).classList.add('show')}
-function closeModals(){document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('show'))}
+function closeModals(){
+  document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('show'));
+  // If we have a company context to return to, reopen it
+  const retId=_returnToCompanyId;
+  _returnToCompanyId=null;
+  if(retId)showCompanyDetail(retId);
+}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModals()});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='ai-search-input')aiSearchCompanies()});
 
