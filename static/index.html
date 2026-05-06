@@ -225,7 +225,7 @@ tr:hover td{background:rgba(108,99,255,0.05)}
           <select id="cf-seniority"><option value="">Все</option><option>c_level</option><option>vp</option><option>director</option><option>manager</option><option>senior</option><option>ic</option></select>
         </div>
         <button class="btn-primary" onclick="loadContacts()" style="align-self:end">Поиск</button>
-        <button class="btn-accent" onclick="showModal('add-contact')" style="align-self:end">+ Добавить</button>
+        <button class="btn-accent" onclick="resetContactForm();loadCompanySelect();showModal('add-contact')" style="align-self:end">+ Добавить</button>
       </div>
       <div id="contacts-results"><p class="loading">Загрузка...</p></div>
     </div>
@@ -339,6 +339,7 @@ tr:hover td{background:rgba(108,99,255,0.05)}
 <div class="modal-overlay" id="modal-add-contact">
   <div class="modal">
     <h2>Добавить контакт</h2>
+    <div class="form-row"><label>Компания</label><select id="nc-company"><option value="">— Без компании —</option></select></div>
     <div class="form-row"><label>Email *</label><input id="nc-email" type="email"></div>
     <div class="form-row"><label>Имя</label><input id="nc-first"></div>
     <div class="form-row"><label>Фамилия</label><input id="nc-last"></div>
@@ -613,10 +614,29 @@ async function enrichContactFromCompany(contactId,companyId){
 }
 
 let addContactForCompanyId=null;
+
+async function loadCompanySelect(){
+  const sel=document.getElementById('nc-company');
+  try{
+    const data=await apiFetch('/companies/search?per_page=100');
+    sel.innerHTML='<option value="">— Без компании —</option>'+data.items.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  }catch(e){/* ignore */}
+}
+
 function openAddContactForCompany(companyId,companyName){
   addContactForCompanyId=companyId;
   closeModals();
-  // Reset form
+  resetContactForm();
+  // Pre-select company in dropdown
+  loadCompanySelect().then(()=>{
+    const sel=document.getElementById('nc-company');
+    sel.value=String(companyId);
+    sel.disabled=true;
+  });
+  showModal('add-contact');
+}
+
+function resetContactForm(){
   document.getElementById('nc-email').value='';
   document.getElementById('nc-first').value='';
   document.getElementById('nc-last').value='';
@@ -624,12 +644,8 @@ function openAddContactForCompany(companyId,companyName){
   document.getElementById('nc-seniority').value='';
   document.getElementById('nc-linkedin').value='';
   document.getElementById('nc-phone').value='';
-  // Show company context
-  let header=document.getElementById('nc-company-header');
-  if(!header){header=document.createElement('div');header.id='nc-company-header';header.style.cssText='margin-bottom:12px;padding:8px 12px;background:var(--bg3);border-radius:var(--radius);font-size:13px;color:var(--primary-light)';document.querySelector('#modal-add-contact .modal').insertBefore(header,document.querySelector('#modal-add-contact .modal').children[1])}
-  header.textContent='Компания: '+companyName;
-  header.style.display='block';
-  showModal('add-contact');
+  const sel=document.getElementById('nc-company');
+  sel.value='';sel.disabled=false;
 }
 
 async function createCompany(){
@@ -669,21 +685,24 @@ async function loadContacts(){
 async function createContact(){
   const body={email:document.getElementById('nc-email').value};
   if(!body.email){alert('Email обязателен');return}
-  if(addContactForCompanyId)body.company_id=addContactForCompanyId;
+  // Company from dropdown or from company modal context
+  const companyVal=document.getElementById('nc-company').value;
+  if(addContactForCompanyId) body.company_id=addContactForCompanyId;
+  else if(companyVal) body.company_id=parseInt(companyVal);
   const fn=document.getElementById('nc-first').value;if(fn)body.first_name=fn;
   const ln=document.getElementById('nc-last').value;if(ln)body.last_name=ln;
   const t=document.getElementById('nc-title').value;if(t)body.title=t;
   const s=document.getElementById('nc-seniority').value;if(s)body.seniority=s;
   const li=document.getElementById('nc-linkedin').value;if(li)body.linkedin_url=li;
   const ph=document.getElementById('nc-phone').value;if(ph)body.phone=ph;
-  const companyId=addContactForCompanyId;
+  const returnToCompany=addContactForCompanyId;
   try{
     await apiFetch('/contacts/','POST',body);
     closeModals();
-    if(companyId){addContactForCompanyId=null;showCompanyDetail(companyId)}
+    if(returnToCompany){showCompanyDetail(returnToCompany)}
     else{loadContacts()}
   }catch(e){alert(e.message)}
-  finally{addContactForCompanyId=null;const h=document.getElementById('nc-company-header');if(h)h.style.display='none'}
+  finally{addContactForCompanyId=null;resetContactForm()}
 }
 
 async function scoreContact(id){
