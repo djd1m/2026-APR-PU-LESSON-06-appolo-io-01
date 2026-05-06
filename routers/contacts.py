@@ -99,6 +99,43 @@ async def create_contact(payload: ContactCreate, db: AsyncSession = Depends(get_
     return contact
 
 
+class ContactUpdate(BaseModel):
+    company_id: Optional[int] = None
+    email: Optional[EmailStr] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    title: Optional[str] = None
+    seniority: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    phone: Optional[str] = None
+
+
+@router.patch("/{contact_id}", response_model=ContactResponse)
+async def update_contact(
+    contact_id: int,
+    payload: ContactUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    result = await db.execute(select(Contact).where(Contact.id == contact_id))
+    contact = result.scalar_one_or_none()
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
+
+    update_data = payload.model_dump(exclude_unset=True)
+    if "email" in update_data and update_data["email"] != contact.email:
+        existing = await db.execute(select(Contact).where(Contact.email == update_data["email"]))
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=409, detail="Contact with this email already exists")
+
+    for field, value in update_data.items():
+        setattr(contact, field, value)
+
+    await db.commit()
+    await db.refresh(contact)
+    return contact
+
+
 @router.post("/{contact_id}/score", response_model=ScoreResponse)
 async def score_contact(contact_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
     result = await db.execute(select(Contact).where(Contact.id == contact_id))

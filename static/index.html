@@ -374,6 +374,25 @@ tr:hover td{background:rgba(108,99,255,0.05)}
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-edit-contact">
+  <div class="modal">
+    <h2>Редактировать контакт</h2>
+    <input type="hidden" id="ec-id">
+    <input type="hidden" id="ec-return-company">
+    <div class="form-row"><label>Компания</label><select id="ec-company"><option value="">— Без компании —</option></select></div>
+    <div class="form-row"><label>Email *</label><input id="ec-email" type="email"></div>
+    <div class="form-row"><label>Имя</label><input id="ec-first"></div>
+    <div class="form-row"><label>Фамилия</label><input id="ec-last"></div>
+    <div class="form-row"><label>Должность</label><input id="ec-title"></div>
+    <div class="form-row"><label>Seniority</label>
+      <select id="ec-seniority"><option value="">—</option><option>c_level</option><option>vp</option><option>director</option><option>manager</option><option>senior</option><option>ic</option></select>
+    </div>
+    <div class="form-row"><label>LinkedIn</label><input id="ec-linkedin"></div>
+    <div class="form-row"><label>Телефон</label><input id="ec-phone"></div>
+    <div class="form-actions"><button class="btn-ghost" onclick="closeModals()">Отмена</button><button class="btn-primary" onclick="saveContact()">Сохранить</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-company-detail">
   <div class="modal" style="max-width:800px">
     <div id="company-detail-content"></div>
@@ -593,6 +612,7 @@ async function showCompanyDetail(id){
           <td style="font-size:12px">${c.phone||'—'}</td>
           <td>${c.score!=null?'<span class="badge badge-score">'+c.score+'</span>':'—'}</td>
           <td>
+            <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="event.stopPropagation();editContact(${c.id},${id})">Ред.</button>
             <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="event.stopPropagation();closeModals();showContactDetail(${c.id})">Детали</button>
             <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="event.stopPropagation();scoreContactFromCompany(${c.id},${id})">Score</button>
             <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="event.stopPropagation();enrichContactFromCompany(${c.id},${id})">Enrich</button>
@@ -674,7 +694,8 @@ async function loadContacts(){
         <td><strong>${c.first_name||''} ${c.last_name||''}</strong></td>
         <td style="font-size:12px">${c.email}</td><td>${c.title||'—'}</td><td>${c.seniority||'—'}</td>
         <td>${c.score!=null?'<span class="badge badge-score">'+c.score+'</span>':'—'}</td>
-        <td><button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="showContactDetail(${c.id})">Детали</button>
+        <td><button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="editContact(${c.id})">Ред.</button>
+        <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="showContactDetail(${c.id})">Детали</button>
         <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="scoreContact(${c.id})">Score</button>
         <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="enrichContact(${c.id})">Enrich</button></td>
       </tr>`).join('')}
@@ -703,6 +724,51 @@ async function createContact(){
     else{loadContacts()}
   }catch(e){alert(e.message)}
   finally{addContactForCompanyId=null;resetContactForm()}
+}
+
+async function editContact(id,returnCompanyId){
+  try{
+    const contact=await apiFetch('/contacts/'+id);
+    // Load companies dropdown
+    const sel=document.getElementById('ec-company');
+    try{
+      const data=await apiFetch('/companies/search?per_page=100');
+      sel.innerHTML='<option value="">— Без компании —</option>'+data.items.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+    }catch(e){}
+    document.getElementById('ec-id').value=contact.id;
+    document.getElementById('ec-return-company').value=returnCompanyId||'';
+    sel.value=contact.company_id||'';
+    document.getElementById('ec-email').value=contact.email||'';
+    document.getElementById('ec-first').value=contact.first_name||'';
+    document.getElementById('ec-last').value=contact.last_name||'';
+    document.getElementById('ec-title').value=contact.title||'';
+    document.getElementById('ec-seniority').value=contact.seniority||'';
+    document.getElementById('ec-linkedin').value=contact.linkedin_url||'';
+    document.getElementById('ec-phone').value=contact.phone||'';
+    closeModals();
+    showModal('edit-contact');
+  }catch(e){alert(e.message)}
+}
+
+async function saveContact(){
+  const id=document.getElementById('ec-id').value;
+  const returnCompany=document.getElementById('ec-return-company').value;
+  const body={};
+  const companyVal=document.getElementById('ec-company').value;
+  body.company_id=companyVal?parseInt(companyVal):null;
+  const email=document.getElementById('ec-email').value;if(email)body.email=email;
+  const fn=document.getElementById('ec-first').value;body.first_name=fn||null;
+  const ln=document.getElementById('ec-last').value;body.last_name=ln||null;
+  const t=document.getElementById('ec-title').value;body.title=t||null;
+  const s=document.getElementById('ec-seniority').value;body.seniority=s||null;
+  const li=document.getElementById('ec-linkedin').value;body.linkedin_url=li||null;
+  const ph=document.getElementById('ec-phone').value;body.phone=ph||null;
+  try{
+    await apiFetch('/contacts/'+id,'PATCH',body);
+    closeModals();
+    if(returnCompany){showCompanyDetail(parseInt(returnCompany))}
+    else{loadContacts()}
+  }catch(e){alert(e.message)}
 }
 
 async function scoreContact(id){
