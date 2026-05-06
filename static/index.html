@@ -366,6 +366,7 @@ function navigate(page,e){
   document.getElementById('page-'+page).classList.remove('hidden');
   document.querySelectorAll('.sidebar nav a').forEach(a=>{a.classList.toggle('active',a.dataset.page===page)});
   if(page==='dashboard')loadDashboard();
+  if(page==='companies')searchCompanies();
   if(page==='contacts')loadContacts();
   if(page==='sequences')loadSequences();
   if(page==='analytics')loadAnalytics();
