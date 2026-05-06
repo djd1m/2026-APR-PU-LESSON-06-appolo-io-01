@@ -374,6 +374,16 @@ tr:hover td{background:rgba(108,99,255,0.05)}
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-edit-sequence">
+  <div class="modal">
+    <h2>Редактировать Sequence</h2>
+    <input type="hidden" id="es-id">
+    <div class="form-row"><label>Название *</label><input id="es-name"></div>
+    <div class="form-row"><label>Описание</label><textarea id="es-desc" rows="2"></textarea></div>
+    <div class="form-actions"><button class="btn-ghost" onclick="closeModals()">Отмена</button><button class="btn-primary" onclick="saveSequence()">Сохранить</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-edit-company">
   <div class="modal">
     <h2>Редактировать компанию</h2>
@@ -912,7 +922,11 @@ async function loadSequences(){
       <td><strong>${s.name}</strong>${s.description?'<br><span style="font-size:11px;color:var(--text-dim)">'+s.description+'</span>':''}</td>
       <td><span class="badge ${s.is_active?'badge-cold':'badge-hot'}">${s.is_active?'Active':'Paused'}</span></td>
       <td style="font-size:12px">${new Date(s.created_at).toLocaleDateString('ru')}</td>
-      <td><button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="toggleSequence(${s.id})">${s.is_active?'Pause':'Resume'}</button></td>
+      <td>
+        <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="editSequence(${s.id})">Ред.</button>
+        <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="toggleSequence(${s.id})">${s.is_active?'Pause':'Resume'}</button>
+        <button class="btn-danger" style="font-size:12px;padding:4px 8px" onclick="deleteSequence(${s.id})">Удалить</button>
+      </td>
     </tr>`).join('')}</tbody></table>`;
   }catch(e){document.getElementById('sequences-list').innerHTML='<p style="color:var(--danger)">'+e.message+'</p>'}
 }
@@ -962,6 +976,32 @@ async function createSequence(){
   const steps=[];
   subjects.forEach((s,i)=>{if(s.value&&bodies[i].value)steps.push({step_order:i+1,subject_template:s.value,body_template:bodies[i].value,delay_days:parseInt(delays[i].value)||0})});
   try{await apiFetch('/sequences/','POST',{name,description:desc||null,steps});closeModals();stepCount=1;loadSequences()}catch(e){alert(e.message)}
+}
+
+async function editSequence(id){
+  try{
+    const s=await apiFetch('/sequences/'+id);
+    document.getElementById('es-id').value=s.id;
+    document.getElementById('es-name').value=s.name||'';
+    document.getElementById('es-desc').value=s.description||'';
+    showModal('edit-sequence');
+  }catch(e){alert(e.message)}
+}
+
+async function saveSequence(){
+  const id=document.getElementById('es-id').value;
+  const body={};
+  const name=document.getElementById('es-name').value;if(name)body.name=name;
+  const desc=document.getElementById('es-desc').value;body.description=desc||null;
+  try{await apiFetch('/sequences/'+id,'PATCH',body);closeModals();loadSequences()}catch(e){alert(e.message)}
+}
+
+async function deleteSequence(id){
+  if(!confirm('Удалить sequence? Это действие необратимо.'))return;
+  try{
+    await fetch(API+'/sequences/'+id,{method:'DELETE',headers:{'Authorization':'Bearer '+token}});
+    loadSequences();
+  }catch(e){alert(e.message)}
 }
 
 async function toggleSequence(id){try{await apiFetch('/sequences/'+id+'/toggle','PATCH');loadSequences()}catch(e){alert(e.message)}}

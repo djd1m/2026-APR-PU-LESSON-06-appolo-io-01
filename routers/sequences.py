@@ -283,6 +283,39 @@ async def send_sequence_email(
     )
 
 
+class SequenceUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
+@router.patch("/{sequence_id}", response_model=SequenceResponse)
+async def update_sequence(
+    sequence_id: int,
+    payload: SequenceUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    result = await db.execute(select(Sequence).where(Sequence.id == sequence_id))
+    seq = result.scalar_one_or_none()
+    if not seq:
+        raise HTTPException(status_code=404, detail="Sequence not found")
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(seq, field, value)
+    await db.commit()
+    await db.refresh(seq)
+    return seq
+
+
+@router.delete("/{sequence_id}", status_code=204)
+async def delete_sequence(sequence_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+    result = await db.execute(select(Sequence).where(Sequence.id == sequence_id))
+    seq = result.scalar_one_or_none()
+    if not seq:
+        raise HTTPException(status_code=404, detail="Sequence not found")
+    await db.delete(seq)
+    await db.commit()
+
+
 @router.patch("/{sequence_id}/toggle")
 async def toggle_sequence(sequence_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
     result = await db.execute(select(Sequence).where(Sequence.id == sequence_id))
