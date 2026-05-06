@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SalesRadar — B2B Sales Intelligence</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0f0f23;--bg2:#1a1a2e;--bg3:#232345;--primary:#6c63ff;--primary-light:#8b83ff;--accent:#00d4aa;--accent-orange:#ff6b35;--text:#e0e0f0;--text-dim:#8888aa;--border:#2a2a4a;--danger:#ff4757;--success:#00d4aa;--warning:#ffa502;--radius:10px;--shadow:0 4px 20px rgba(0,0,0,0.3)}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex}
+a{color:var(--primary-light);text-decoration:none}
+button{cursor:pointer;border:none;font-family:inherit;font-size:14px;border-radius:var(--radius);padding:8px 16px;transition:all .2s}
+input,select,textarea{background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);padding:8px 12px;font-size:14px;font-family:inherit;width:100%}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary)}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:var(--primary-light)}
+.btn-accent{background:var(--accent);color:#0f0f23}.btn-accent:hover{opacity:.85}
+.btn-ghost{background:transparent;color:var(--text-dim);border:1px solid var(--border)}.btn-ghost:hover{border-color:var(--primary);color:var(--text)}
+.btn-danger{background:var(--danger);color:#fff}.btn-danger:hover{opacity:.85}
+
+/* Layout */
+.sidebar{width:240px;background:var(--bg2);border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;z-index:10}
+.sidebar .logo{padding:0 20px 20px;font-size:20px;font-weight:700;color:var(--primary-light);display:flex;align-items:center;gap:8px}
+.sidebar .logo span{font-size:24px}
+.sidebar nav{flex:1}
+.sidebar nav a{display:flex;align-items:center;gap:10px;padding:10px 20px;color:var(--text-dim);transition:all .15s;font-size:14px}
+.sidebar nav a:hover,.sidebar nav a.active{color:var(--text);background:var(--bg3)}
+.sidebar nav a.active{border-left:3px solid var(--primary)}
+.sidebar .user-info{padding:15px 20px;border-top:1px solid var(--border);font-size:12px;color:var(--text-dim)}
+.main{margin-left:240px;flex:1;padding:24px;min-height:100vh}
+.main h1{font-size:24px;margin-bottom:20px;font-weight:600}
+
+/* Cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+.card .label{font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.card .value{font-size:28px;font-weight:700}
+.card .value.accent{color:var(--accent)}
+.card .value.primary{color:var(--primary-light)}
+.card .value.warning{color:var(--warning)}
+.card .value.danger{color:var(--danger)}
+
+/* Tables */
+table{width:100%;border-collapse:collapse;background:var(--bg2);border-radius:var(--radius);overflow:hidden}
+th{text-align:left;padding:12px 16px;background:var(--bg3);font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);font-weight:600}
+td{padding:10px 16px;border-top:1px solid var(--border);font-size:14px}
+tr:hover td{background:rgba(108,99,255,0.05)}
+
+/* Badges */
+.badge{display:inline-block;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.badge-hot{background:rgba(255,71,87,0.15);color:#ff4757}
+.badge-warm{background:rgba(255,165,2,0.15);color:#ffa502}
+.badge-cold{background:rgba(0,212,170,0.15);color:#00d4aa}
+.badge-score{background:rgba(108,99,255,0.15);color:var(--primary-light)}
+
+/* Filters */
+.filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:end}
+.filter-group{display:flex;flex-direction:column;gap:4px}
+.filter-group label{font-size:11px;color:var(--text-dim);text-transform:uppercase}
+.filter-group input,.filter-group select{width:160px}
+
+/* Intent signals */
+.signal-item{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);transition:background .15s}
+.signal-item:hover{background:var(--bg3)}
+.signal-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px}
+.signal-icon.hiring{background:rgba(108,99,255,0.15)}
+.signal-icon.tender{background:rgba(0,212,170,0.15)}
+.signal-icon.revenue{background:rgba(255,165,2,0.15)}
+.signal-icon.ceo{background:rgba(255,107,53,0.15)}
+.signal-icon.media{background:rgba(255,71,87,0.15)}
+.signal-title{flex:1}
+.signal-title .name{font-weight:600;font-size:14px}
+.signal-title .desc{font-size:12px;color:var(--text-dim);margin-top:2px}
+.signal-score{font-size:20px;font-weight:700}
+
+/* Scoring breakdown */
+.score-ring{width:120px;height:120px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:800;margin:0 auto 16px}
+.score-bars{display:grid;gap:8px}
+.score-bar{display:flex;align-items:center;gap:8px}
+.score-bar .label{width:100px;font-size:12px;color:var(--text-dim);text-align:right}
+.score-bar .track{flex:1;height:8px;background:var(--bg);border-radius:4px;overflow:hidden}
+.score-bar .fill{height:100%;border-radius:4px;transition:width .5s ease}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;z-index:100}
+.modal-overlay.show{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
+.modal h2{margin-bottom:16px}
+.modal .form-row{margin-bottom:12px}
+.modal .form-row label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px}
+.modal .form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+
+/* Plans */
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:20px 0}
+.plan-card{background:var(--bg2);border:2px solid var(--border);border-radius:16px;padding:24px;text-align:center;transition:all .2s}
+.plan-card:hover{border-color:var(--primary)}
+.plan-card.current{border-color:var(--accent)}
+.plan-card .plan-name{font-size:18px;font-weight:700;margin-bottom:4px}
+.plan-card .plan-price{font-size:32px;font-weight:800;color:var(--primary-light);margin:12px 0}
+.plan-card .plan-price span{font-size:14px;font-weight:400;color:var(--text-dim)}
+.plan-card .plan-features{list-style:none;text-align:left;margin:16px 0;font-size:13px;color:var(--text-dim)}
+.plan-card .plan-features li{padding:4px 0}
+.plan-card .plan-features li::before{content:"✓ ";color:var(--accent)}
+
+/* Sequence builder */
+.step-list{display:flex;flex-direction:column;gap:12px;margin:16px 0}
+.step-card{background:var(--bg3);border-radius:var(--radius);padding:16px;border-left:3px solid var(--primary)}
+.step-card .step-num{font-size:11px;color:var(--primary-light);font-weight:700;margin-bottom:8px}
+
+/* Tabs */
+.tabs{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px}
+.tab{padding:10px 20px;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--primary-light);border-bottom-color:var(--primary)}
+
+/* Auth screen */
+.auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%}
+.auth-box{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:40px;width:400px;box-shadow:var(--shadow)}
+.auth-box h1{text-align:center;margin-bottom:8px}
+.auth-box .subtitle{text-align:center;color:var(--text-dim);margin-bottom:24px;font-size:14px}
+.auth-box .form-row{margin-bottom:16px}
+.auth-box .form-row label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px}
+.auth-box .btn-primary{width:100%;padding:12px;font-size:16px;margin-top:8px}
+.auth-box .toggle{text-align:center;margin-top:16px;font-size:13px;color:var(--text-dim)}
+
+.hidden{display:none}
+.loading{text-align:center;padding:40px;color:var(--text-dim)}
+</style>
+</head>
+<body>
+
+<!-- Auth Screen -->
+<div id="auth-screen" class="auth-screen">
+  <div class="auth-box">
+    <h1>SalesRadar</h1>
+    <p class="subtitle">B2B Sales Intelligence для России</p>
+    <div id="auth-form">
+      <div class="form-row">
+        <label>Email</label>
+        <input type="email" id="auth-email" placeholder="user@company.ru">
+      </div>
+      <div class="form-row" id="auth-name-row" style="display:none">
+        <label>Имя</label>
+        <input type="text" id="auth-name" placeholder="Алексей Петров">
+      </div>
+      <div class="form-row">
+        <label>Пароль</label>
+        <input type="password" id="auth-password" placeholder="••••••••">
+      </div>
+      <button class="btn-primary" id="auth-submit" onclick="handleAuth()">Войти</button>
+      <p class="toggle">
+        <span id="auth-toggle-text">Нет аккаунта?</span>
+        <a href="#" onclick="toggleAuthMode(event);" id="auth-toggle-link">Регистрация</a>
+      </p>
+      <p id="auth-error" style="color:var(--danger);text-align:center;margin-top:10px;font-size:13px"></p>
+    </div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app" class="hidden" style="display:none;width:100%">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="logo"><span>◈</span> SalesRadar</div>
+    <nav>
+      <a href="#" data-page="dashboard" class="active" onclick="navigate('dashboard',event)">📊 Dashboard</a>
+      <a href="#" data-page="companies" onclick="navigate('companies',event)">🏢 Компании</a>
+      <a href="#" data-page="contacts" onclick="navigate('contacts',event)">👤 Контакты</a>
+      <a href="#" data-page="sequences" onclick="navigate('sequences',event)">📧 Sequences</a>
+      <a href="#" data-page="analytics" onclick="navigate('analytics',event)">📈 Аналитика</a>
+      <a href="#" data-page="billing" onclick="navigate('billing',event)">💳 Биллинг</a>
+    </nav>
+    <div class="user-info">
+      <div id="user-email" style="font-weight:600;color:var(--text)"></div>
+      <div id="user-plan" style="margin-top:4px"></div>
+      <div id="user-credits" style="margin-top:4px"></div>
+      <a href="#" onclick="logout(event)" style="color:var(--danger);font-size:12px;margin-top:8px;display:block">Выйти</a>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="main">
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page">
+      <h1>Dashboard</h1>
+      <div class="cards" id="dashboard-cards"></div>
+      <h2 style="margin-bottom:12px">🔥 Горячие intent-сигналы</h2>
+      <div class="card" style="padding:0" id="hot-signals"></div>
+    </div>
+
+    <!-- COMPANIES -->
+    <div id="page-companies" class="page hidden">
+      <h1>Поиск компаний</h1>
+      <div class="filters">
+        <div class="filter-group"><label>Название</label><input id="f-name" placeholder="ТехноСофт..."></div>
+        <div class="filter-group"><label>ОКВЭД</label><input id="f-okved" placeholder="62"></div>
+        <div class="filter-group"><label>Регион</label><input id="f-region" placeholder="Москва"></div>
+        <div class="filter-group"><label>Выручка</label>
+          <select id="f-revenue"><option value="">Любая</option><option>0-10M</option><option>10-50M</option><option>50-200M</option><option>200-500M</option><option>500M+</option></select>
+        </div>
+        <div class="filter-group"><label>Штат от</label><input id="f-emp-min" type="number" placeholder="10"></div>
+        <div class="filter-group"><label>Intent ≥</label><input id="f-intent" type="number" placeholder="50"></div>
+        <button class="btn-primary" onclick="searchCompanies()" style="align-self:end">Поиск</button>
+        <button class="btn-accent" onclick="showModal('add-company')" style="align-self:end">+ Добавить</button>
+      </div>
+      <div id="companies-results"><p class="loading">Введите параметры поиска</p></div>
+    </div>
+
+    <!-- CONTACTS -->
+    <div id="page-contacts" class="page hidden">
+      <h1>Контакты</h1>
+      <div class="filters">
+        <div class="filter-group"><label>Поиск</label><input id="cf-q" placeholder="Имя, email..."></div>
+        <div class="filter-group"><label>Seniority</label>
+          <select id="cf-seniority"><option value="">Все</option><option>c_level</option><option>vp</option><option>director</option><option>manager</option><option>senior</option><option>ic</option></select>
+        </div>
+        <button class="btn-primary" onclick="loadContacts()" style="align-self:end">Поиск</button>
+        <button class="btn-accent" onclick="showModal('add-contact')" style="align-self:end">+ Добавить</button>
+      </div>
+      <div id="contacts-results"><p class="loading">Загрузка...</p></div>
+    </div>
+
+    <!-- SEQUENCES -->
+    <div id="page-sequences" class="page hidden">
+      <h1>Email Sequences</h1>
+      <button class="btn-accent" onclick="showModal('add-sequence')" style="margin-bottom:16px">+ Создать sequence</button>
+      <div id="sequences-list"><p class="loading">Загрузка...</p></div>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div id="page-analytics" class="page hidden">
+      <h1>Аналитика</h1>
+      <div class="cards" id="analytics-cards"></div>
+      <h2 style="margin:20px 0 12px">🏆 Топ-10 лидов по Score</h2>
+      <div id="top-leads-table"></div>
+    </div>
+
+    <!-- BILLING -->
+    <div id="page-billing" class="page hidden">
+      <h1>Биллинг и подписка</h1>
+      <div class="card" style="margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div class="label">Текущий план</div>
+            <div id="billing-plan" style="font-size:24px;font-weight:700;color:var(--primary-light)">Free</div>
+          </div>
+          <div style="text-align:right">
+            <div class="label">Кредиты</div>
+            <div id="billing-credits" style="font-size:24px;font-weight:700;color:var(--accent)">50</div>
+          </div>
+        </div>
+      </div>
+      <h2 style="margin-bottom:12px">Тарифы</h2>
+      <div class="plans" id="plans-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modals -->
+<div class="modal-overlay" id="modal-add-company">
+  <div class="modal">
+    <h2>Добавить компанию</h2>
+    <div class="form-row"><label>Название *</label><input id="mc-name"></div>
+    <div class="form-row"><label>ИНН</label><input id="mc-inn" maxlength="12"></div>
+    <div class="form-row"><label>ОКВЭД</label><input id="mc-okved"></div>
+    <div class="form-row"><label>Регион</label><input id="mc-region"></div>
+    <div class="form-row"><label>Отрасль</label><input id="mc-industry"></div>
+    <div class="form-row"><label>Штат</label><input id="mc-employees" type="number"></div>
+    <div class="form-row"><label>Сайт</label><input id="mc-website"></div>
+    <div class="form-actions"><button class="btn-ghost" onclick="closeModals()">Отмена</button><button class="btn-primary" onclick="createCompany()">Создать</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-add-contact">
+  <div class="modal">
+    <h2>Добавить контакт</h2>
+    <div class="form-row"><label>Email *</label><input id="nc-email" type="email"></div>
+    <div class="form-row"><label>Имя</label><input id="nc-first"></div>
+    <div class="form-row"><label>Фамилия</label><input id="nc-last"></div>
+    <div class="form-row"><label>Должность</label><input id="nc-title"></div>
+    <div class="form-row"><label>Seniority</label>
+      <select id="nc-seniority"><option value="">—</option><option>c_level</option><option>vp</option><option>director</option><option>manager</option><option>senior</option><option>ic</option></select>
+    </div>
+    <div class="form-row"><label>LinkedIn</label><input id="nc-linkedin"></div>
+    <div class="form-row"><label>Телефон</label><input id="nc-phone"></div>
+    <div class="form-actions"><button class="btn-ghost" onclick="closeModals()">Отмена</button><button class="btn-primary" onclick="createContact()">Создать</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-add-sequence">
+  <div class="modal">
+    <h2>Создать Sequence</h2>
+    <div class="form-row"><label>Название *</label><input id="ns-name" placeholder="Cold outreach IT companies"></div>
+    <div class="form-row"><label>Описание</label><textarea id="ns-desc" rows="2"></textarea></div>
+    <h3 style="margin:12px 0 8px;font-size:14px">Шаги</h3>
+    <div id="ns-steps">
+      <div class="step-card"><div class="step-num">Шаг 1</div><div class="form-row"><label>Тема</label><input class="ns-subject" placeholder="Привет {first_name}!"></div><div class="form-row"><label>Текст</label><textarea class="ns-body" rows="3" placeholder="Здравствуйте, {first_name}! Мы в {company}..."></textarea></div><div class="form-row"><label>Задержка (дней)</label><input class="ns-delay" type="number" value="0"></div></div>
+    </div>
+    <button class="btn-ghost" onclick="addSequenceStep()" style="margin:8px 0">+ Добавить шаг</button>
+    <div class="form-actions"><button class="btn-ghost" onclick="closeModals()">Отмена</button><button class="btn-primary" onclick="createSequence()">Создать</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-contact-detail">
+  <div class="modal" style="max-width:700px">
+    <div id="contact-detail-content"></div>
+    <div class="form-actions"><button class="btn-ghost" onclick="closeModals()">Закрыть</button></div>
+  </div>
+</div>
+
+<script>
+const API='/api/v1';
+let token='';
+let currentUser=null;
+let authMode='login';
+
+// --- Auth ---
+function toggleAuthMode(e){e.preventDefault();authMode=authMode==='login'?'register':'login';document.getElementById('auth-name-row').style.display=authMode==='register'?'block':'none';document.getElementById('auth-submit').textContent=authMode==='register'?'Зарегистрироваться':'Войти';document.getElementById('auth-toggle-text').textContent=authMode==='register'?'Уже есть аккаунт?':'Нет аккаунта?';document.getElementById('auth-toggle-link').textContent=authMode==='register'?'Войти':'Регистрация';document.getElementById('auth-error').textContent=''}
+
+async function handleAuth(){
+  const email=document.getElementById('auth-email').value;
+  const password=document.getElementById('auth-password').value;
+  const errEl=document.getElementById('auth-error');
+  errEl.textContent='';
+  if(!email||!password){errEl.textContent='Заполните все поля';return}
+  try{
+    if(authMode==='register'){
+      const name=document.getElementById('auth-name').value;
+      await apiFetch('/auth/register','POST',{email,password,full_name:name||null});
+    }
+    const form=new URLSearchParams();form.append('username',email);form.append('password',password);
+    const r=await fetch(API+'/auth/login',{method:'POST',body:form});
+    if(!r.ok){const d=await r.json();throw new Error(d.detail||'Login failed')}
+    const data=await r.json();
+    token=data.access_token;
+    localStorage.setItem('sr_token',token);
+    await loadUser();
+    showApp();
+  }catch(e){errEl.textContent=e.message}
+}
+
+async function loadUser(){
+  currentUser=await apiFetch('/auth/me');
+  document.getElementById('user-email').textContent=currentUser.email;
+  document.getElementById('user-plan').textContent='План: '+(currentUser.plan||'free').toUpperCase();
+  document.getElementById('user-credits').textContent='Кредиты: '+currentUser.credits;
+}
+
+function logout(e){e.preventDefault();token='';currentUser=null;localStorage.removeItem('sr_token');document.getElementById('app').style.display='none';document.getElementById('auth-screen').style.display='flex'}
+
+function showApp(){document.getElementById('auth-screen').style.display='none';document.getElementById('app').style.display='flex';navigate('dashboard')}
+
+// --- API ---
+async function apiFetch(path,method='GET',body=null){
+  const opts={method,headers:{'Content-Type':'application/json'}};
+  if(token)opts.headers['Authorization']='Bearer '+token;
+  if(body)opts.body=JSON.stringify(body);
+  const r=await fetch(API+path,opts);
+  if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.detail||'API error '+r.status)}
+  return r.json();
+}
+
+// --- Navigation ---
+function navigate(page,e){
+  if(e)e.preventDefault();
+  document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
+  document.getElementById('page-'+page).classList.remove('hidden');
+  document.querySelectorAll('.sidebar nav a').forEach(a=>{a.classList.toggle('active',a.dataset.page===page)});
+  if(page==='dashboard')loadDashboard();
+  if(page==='contacts')loadContacts();
+  if(page==='sequences')loadSequences();
+  if(page==='analytics')loadAnalytics();
+  if(page==='billing')loadBilling();
+}
+
+// --- Dashboard ---
+async function loadDashboard(){
+  try{
+    const[overview,signals]=await Promise.all([apiFetch('/analytics/overview'),apiFetch('/intents/hot?limit=8')]);
+    document.getElementById('dashboard-cards').innerHTML=`
+      <div class="card"><div class="label">Компании</div><div class="value primary">${overview.companies}</div></div>
+      <div class="card"><div class="label">Контакты</div><div class="value accent">${overview.contacts}</div></div>
+      <div class="card"><div class="label">Active Sequences</div><div class="value">${overview.active_enrollments}</div></div>
+      <div class="card"><div class="label">Open Rate</div><div class="value warning">${overview.open_rate}%</div></div>
+      <div class="card"><div class="label">Reply Rate</div><div class="value">${overview.reply_rate}%</div></div>
+      <div class="card"><div class="label">Кредиты</div><div class="value accent">${overview.credits_remaining}</div></div>
+    `;
+    const icons={hiring:'hiring',tender:'tender',revenue_growth:'revenue',new_ceo:'ceo',media_mention:'media'};
+    const emojis={hiring:'👥',tender:'📋',revenue_growth:'📈',new_ceo:'🔄',media_mention:'📰'};
+    document.getElementById('hot-signals').innerHTML=signals.map(s=>`
+      <div class="signal-item">
+        <div class="signal-icon ${icons[s.type]||'hiring'}">${emojis[s.type]||'🔔'}</div>
+        <div class="signal-title"><div class="name">${s.company}</div><div class="desc">${s.title}</div><div style="font-size:11px;color:var(--text-dim);margin-top:2px">${s.source} · ${new Date(s.detected_at).toLocaleDateString('ru')}</div></div>
+        <div class="signal-score" style="color:${s.strength>=80?'var(--danger)':s.strength>=60?'var(--warning)':'var(--accent)'}">${s.strength}</div>
+      </div>
+    `).join('');
+  }catch(e){console.error(e)}
+}
+
+// --- Companies ---
+async function searchCompanies(){
+  const params=new URLSearchParams();
+  const q=document.getElementById('f-name').value;if(q)params.set('q',q);
+  const okved=document.getElementById('f-okved').value;if(okved)params.set('okved',okved);
+  const region=document.getElementById('f-region').value;if(region)params.set('region',region);
+  const rev=document.getElementById('f-revenue').value;if(rev)params.set('revenue_range',rev);
+  const empMin=document.getElementById('f-emp-min').value;if(empMin)params.set('employee_min',empMin);
+  const intent=document.getElementById('f-intent').value;if(intent)params.set('intent_min',intent);
+  try{
+    const data=await apiFetch('/companies/search?'+params.toString());
+    if(!data.items.length){document.getElementById('companies-results').innerHTML='<p class="loading">Ничего не найдено</p>';return}
+    document.getElementById('companies-results').innerHTML=`
+      <table><thead><tr><th>Компания</th><th>ИНН</th><th>ОКВЭД</th><th>Регион</th><th>Штат</th><th>Выручка</th><th>Intent</th></tr></thead><tbody>
+      ${data.items.map(c=>`<tr>
+        <td><strong>${c.name}</strong>${c.website?'<br><span style="font-size:11px;color:var(--text-dim)">'+c.website+'</span>':''}</td>
+        <td style="font-size:12px">${c.inn||'—'}</td><td>${c.okved_main||'—'}</td><td>${c.region||'—'}</td>
+        <td>${c.employee_count||'—'}</td><td>${c.revenue_range||'—'}</td>
+        <td><span class="badge ${c.intent_score>=80?'badge-hot':c.intent_score>=50?'badge-warm':'badge-cold'}">${c.intent_score}</span></td>
+      </tr>`).join('')}
+      </tbody></table>
+      <p style="margin-top:8px;font-size:12px;color:var(--text-dim)">Найдено: ${data.total} | Страница ${data.page}</p>`;
+  }catch(e){document.getElementById('companies-results').innerHTML='<p style="color:var(--danger)">'+e.message+'</p>'}
+}
+
+async function createCompany(){
+  const body={name:document.getElementById('mc-name').value};
+  const inn=document.getElementById('mc-inn').value;if(inn)body.inn=inn;
+  const okved=document.getElementById('mc-okved').value;if(okved)body.okved_main=okved;
+  const region=document.getElementById('mc-region').value;if(region)body.region=region;
+  const industry=document.getElementById('mc-industry').value;if(industry)body.industry=industry;
+  const emp=document.getElementById('mc-employees').value;if(emp)body.employee_count=parseInt(emp);
+  const web=document.getElementById('mc-website').value;if(web)body.website=web;
+  if(!body.name){alert('Название обязательно');return}
+  try{await apiFetch('/companies','POST',body);closeModals();searchCompanies()}catch(e){alert(e.message)}
+}
+
+// --- Contacts ---
+async function loadContacts(){
+  const params=new URLSearchParams();
+  const q=document.getElementById('cf-q').value;if(q)params.set('q',q);
+  const sen=document.getElementById('cf-seniority').value;if(sen)params.set('seniority',sen);
+  try{
+    const data=await apiFetch('/contacts?'+params.toString());
+    if(!data.length){document.getElementById('contacts-results').innerHTML='<p class="loading">Контакты не найдены</p>';return}
+    document.getElementById('contacts-results').innerHTML=`
+      <table><thead><tr><th>Имя</th><th>Email</th><th>Должность</th><th>Seniority</th><th>Score</th><th>Действия</th></tr></thead><tbody>
+      ${data.map(c=>`<tr>
+        <td><strong>${c.first_name||''} ${c.last_name||''}</strong></td>
+        <td style="font-size:12px">${c.email}</td><td>${c.title||'—'}</td><td>${c.seniority||'—'}</td>
+        <td>${c.score!=null?'<span class="badge badge-score">'+c.score+'</span>':'—'}</td>
+        <td><button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="showContactDetail(${c.id})">Детали</button>
+        <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="scoreContact(${c.id})">Score</button>
+        <button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="enrichContact(${c.id})">Enrich</button></td>
+      </tr>`).join('')}
+      </tbody></table>`;
+  }catch(e){document.getElementById('contacts-results').innerHTML='<p style="color:var(--danger)">'+e.message+'</p>'}
+}
+
+async function createContact(){
+  const body={email:document.getElementById('nc-email').value};
+  if(!body.email){alert('Email обязателен');return}
+  const fn=document.getElementById('nc-first').value;if(fn)body.first_name=fn;
+  const ln=document.getElementById('nc-last').value;if(ln)body.last_name=ln;
+  const t=document.getElementById('nc-title').value;if(t)body.title=t;
+  const s=document.getElementById('nc-seniority').value;if(s)body.seniority=s;
+  const li=document.getElementById('nc-linkedin').value;if(li)body.linkedin_url=li;
+  const ph=document.getElementById('nc-phone').value;if(ph)body.phone=ph;
+  try{await apiFetch('/contacts','POST',body);closeModals();loadContacts()}catch(e){alert(e.message)}
+}
+
+async function scoreContact(id){
+  try{const r=await apiFetch('/contacts/'+id+'/score','POST');alert('Score: '+r.score+' (v'+r.version+')');loadContacts()}catch(e){alert(e.message)}
+}
+
+async function enrichContact(id){
+  try{await apiFetch('/contacts/'+id+'/enrich','POST');await loadUser();loadContacts()}catch(e){alert(e.message)}
+}
+
+async function showContactDetail(id){
+  try{
+    const[contact,timeline,agg]=await Promise.all([
+      apiFetch('/contacts/'+id),
+      apiFetch('/activities/timeline/'+id+'?limit=10'),
+      apiFetch('/activities/aggregate/'+id),
+    ]);
+    let scoreHtml='<p style="color:var(--text-dim)">Score не рассчитан</p>';
+    if(contact.score!=null){
+      const colors={profile_score:'var(--primary)',engagement_score:'var(--accent)',fit_score:'var(--warning)',recency_score:'var(--accent-orange)'};
+      scoreHtml=`<div class="score-ring" style="background:conic-gradient(var(--primary) ${contact.score*3.6}deg,var(--bg) 0)">${contact.score}</div>`;
+    }
+    const actEmojis={email_sent:'📤',email_opened:'👁',email_replied:'💬',call_logged:'📞',note_added:'📝',contact_enriched:'🔍',company_enriched:'🏢',crm_synced:'🔄'};
+    document.getElementById('contact-detail-content').innerHTML=`
+      <h2>${contact.first_name||''} ${contact.last_name||''}</h2>
+      <p style="color:var(--text-dim)">${contact.email} · ${contact.title||'—'} · ${contact.seniority||'—'}</p>
+      ${contact.linkedin_url?'<p><a href="'+contact.linkedin_url+'" target="_blank">LinkedIn Profile</a></p>':''}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px">
+        <div><h3 style="margin-bottom:12px">Lead Score</h3>${scoreHtml}</div>
+        <div><h3 style="margin-bottom:12px">Activity Summary</h3>
+          ${Object.keys(agg.counts).length?Object.entries(agg.counts).map(([k,v])=>'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px"><span>'+(actEmojis[k]||'')+ ' ' +k+'</span><strong>'+v+'</strong></div>').join(''):'<p style="color:var(--text-dim);font-size:13px">Нет активности</p>'}
+        </div>
+      </div>
+      <h3 style="margin-top:20px;margin-bottom:12px">Timeline</h3>
+      ${timeline.length?timeline.map(a=>'<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px"><span>'+(actEmojis[a.activity_type]||'')+'</span><span>'+a.activity_type+'</span><span style="margin-left:auto;color:var(--text-dim)">'+new Date(a.occurred_at).toLocaleString('ru')+'</span></div>').join(''):'<p style="color:var(--text-dim);font-size:13px">Нет событий</p>'}
+    `;
+    showModal('contact-detail');
+  }catch(e){alert(e.message)}
+}
+
+// --- Sequences ---
+async function loadSequences(){
+  try{
+    const data=await apiFetch('/sequences');
+    if(!data.length){document.getElementById('sequences-list').innerHTML='<p class="loading">Нет sequences. Создайте первый!</p>';return}
+    document.getElementById('sequences-list').innerHTML=`<table><thead><tr><th>Название</th><th>Статус</th><th>Дата</th><th>Действия</th></tr></thead><tbody>
+    ${data.map(s=>`<tr>
+      <td><strong>${s.name}</strong>${s.description?'<br><span style="font-size:11px;color:var(--text-dim)">'+s.description+'</span>':''}</td>
+      <td><span class="badge ${s.is_active?'badge-cold':'badge-hot'}">${s.is_active?'Active':'Paused'}</span></td>
+      <td style="font-size:12px">${new Date(s.created_at).toLocaleDateString('ru')}</td>
+      <td><button class="btn-ghost" style="font-size:12px;padding:4px 8px" onclick="toggleSequence(${s.id})">${s.is_active?'Pause':'Resume'}</button></td>
+    </tr>`).join('')}</tbody></table>`;
+  }catch(e){document.getElementById('sequences-list').innerHTML='<p style="color:var(--danger)">'+e.message+'</p>'}
+}
+
+let stepCount=1;
+function addSequenceStep(){
+  stepCount++;
+  const div=document.createElement('div');div.className='step-card';
+  div.innerHTML=`<div class="step-num">Шаг ${stepCount}</div><div class="form-row"><label>Тема</label><input class="ns-subject"></div><div class="form-row"><label>Текст</label><textarea class="ns-body" rows="3"></textarea></div><div class="form-row"><label>Задержка (дней)</label><input class="ns-delay" type="number" value="${stepCount}"></div>`;
+  document.getElementById('ns-steps').appendChild(div);
+}
+
+async function createSequence(){
+  const name=document.getElementById('ns-name').value;
+  if(!name){alert('Название обязательно');return}
+  const desc=document.getElementById('ns-desc').value;
+  const subjects=document.querySelectorAll('.ns-subject');
+  const bodies=document.querySelectorAll('.ns-body');
+  const delays=document.querySelectorAll('.ns-delay');
+  const steps=[];
+  subjects.forEach((s,i)=>{if(s.value&&bodies[i].value)steps.push({step_order:i+1,subject_template:s.value,body_template:bodies[i].value,delay_days:parseInt(delays[i].value)||0})});
+  try{await apiFetch('/sequences','POST',{name,description:desc||null,steps});closeModals();stepCount=1;loadSequences()}catch(e){alert(e.message)}
+}
+
+async function toggleSequence(id){try{await apiFetch('/sequences/'+id+'/toggle','PATCH');loadSequences()}catch(e){alert(e.message)}}
+
+// --- Analytics ---
+async function loadAnalytics(){
+  try{
+    const[overview,leads]=await Promise.all([apiFetch('/analytics/overview'),apiFetch('/analytics/top-leads')]);
+    document.getElementById('analytics-cards').innerHTML=`
+      <div class="card"><div class="label">Emails Sent</div><div class="value">${overview.emails_sent}</div></div>
+      <div class="card"><div class="label">Emails Opened</div><div class="value primary">${overview.emails_opened}</div></div>
+      <div class="card"><div class="label">Replies</div><div class="value accent">${overview.emails_replied}</div></div>
+      <div class="card"><div class="label">Open Rate</div><div class="value warning">${overview.open_rate}%</div></div>
+      <div class="card"><div class="label">Reply Rate</div><div class="value">${overview.reply_rate}%</div></div>
+    `;
+    document.getElementById('top-leads-table').innerHTML=leads.length?`<table><thead><tr><th>#</th><th>Имя</th><th>Email</th><th>Должность</th><th>Score</th></tr></thead><tbody>
+      ${leads.map((l,i)=>`<tr><td>${i+1}</td><td><strong>${l.first_name||''} ${l.last_name||''}</strong></td><td style="font-size:12px">${l.email}</td><td>${l.title||'—'}</td><td><span class="badge badge-score">${l.score}</span></td></tr>`).join('')}
+    </tbody></table>`:'<p class="loading">Нет данных</p>';
+  }catch(e){console.error(e)}
+}
+
+// --- Billing ---
+async function loadBilling(){
+  try{
+    const[credits,plans]=await Promise.all([apiFetch('/billing/credits'),apiFetch('/billing/plans')]);
+    document.getElementById('billing-plan').textContent=(credits.plan||'free').toUpperCase();
+    document.getElementById('billing-credits').textContent=credits.credits;
+    document.getElementById('plans-grid').innerHTML=Object.entries(plans).map(([key,p])=>`
+      <div class="plan-card ${credits.plan===key?'current':''}">
+        <div class="plan-name">${p.name}</div>
+        <div class="plan-price">${p.price.toLocaleString('ru')}₽<span>/мес</span></div>
+        <ul class="plan-features">
+          <li>${p.credits.toLocaleString('ru')} контактов/мес</li>
+          <li>Email sequences</li>
+          <li>Intent signals</li>
+          <li>CRM sync</li>
+          ${key==='agency'?'<li>Мульти-аккаунт</li><li>API доступ</li>':''}
+        </ul>
+        <button class="${credits.plan===key?'btn-ghost':'btn-primary'}" style="width:100%;margin-top:8px" ${credits.plan===key?'disabled':''} onclick="upgradePlan('${key}')">
+          ${credits.plan===key?'Текущий план':'Выбрать'}
+        </button>
+      </div>
+    `).join('');
+  }catch(e){console.error(e)}
+}
+
+async function upgradePlan(plan){
+  if(!confirm('Обновить план до '+plan.toUpperCase()+'?'))return;
+  try{const r=await apiFetch('/billing/upgrade','POST',{plan});alert('План обновлён! Добавлено кредитов: '+r.credits_added);await loadUser();loadBilling()}catch(e){alert(e.message)}
+}
+
+// --- Modals ---
+function showModal(id){document.getElementById('modal-'+id).classList.add('show')}
+function closeModals(){document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('show'))}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModals()});
+
+// --- Init ---
+window.addEventListener('DOMContentLoaded',()=>{
+  const saved=localStorage.getItem('sr_token');
+  if(saved){token=saved;loadUser().then(()=>showApp()).catch(()=>{localStorage.removeItem('sr_token')})}
+});
+</script>
+</body>
+</html>
