@@ -168,6 +168,8 @@ tr:hover td{background:rgba(108,99,255,0.05)}
       <a href="#" data-page="sequences" onclick="navigate('sequences',event)">📧 Sequences</a>
       <a href="#" data-page="analytics" onclick="navigate('analytics',event)">📈 Аналитика</a>
       <a href="#" data-page="billing" onclick="navigate('billing',event)">💳 Биллинг</a>
+      <a href="#" data-page="reuse" onclick="navigate('reuse',event)">📚 Knowledge Base</a>
+      <a href="#" data-page="guide" onclick="navigate('guide',event)">📖 Руководство</a>
     </nav>
     <div class="user-info">
       <div id="user-email" style="font-weight:600;color:var(--text)"></div>
@@ -251,6 +253,61 @@ tr:hover td{background:rgba(108,99,255,0.05)}
       </div>
       <h2 style="margin-bottom:12px">Тарифы</h2>
       <div class="plans" id="plans-grid"></div>
+    </div>
+
+    <!-- REUSE / KNOWLEDGE BASE -->
+    <div id="page-reuse" class="page hidden">
+      <h1>Knowledge Base</h1>
+      <p style="color:var(--text-dim);margin-bottom:20px">Переиспользование паттернов и навыков из предыдущих проектов</p>
+
+      <div class="cards" style="grid-template-columns:repeat(3,1fr)">
+        <div class="card"><div class="label">Переиспользовать (USE)</div><div class="value accent" id="reuse-stat-use">0</div><div style="font-size:11px;color:var(--text-dim);margin-top:4px">Паттерны готовы к применению</div></div>
+        <div class="card"><div class="label">Углубить (DEEPEN)</div><div class="value primary" id="reuse-stat-deepen">0</div><div style="font-size:11px;color:var(--text-dim);margin-top:4px">Требуют расширения</div></div>
+        <div class="card"><div class="label">Новые навыки (NEW)</div><div class="value warning" id="reuse-stat-new">0</div><div style="font-size:11px;color:var(--text-dim);margin-top:4px">Изучить с нуля</div></div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-bottom:20px">
+        <button class="btn-primary reuse-filter active" data-filter="all" onclick="filterReuse('all',this)">Все</button>
+        <button class="btn-ghost reuse-filter" data-filter="USE" onclick="filterReuse('USE',this)">USE</button>
+        <button class="btn-ghost reuse-filter" data-filter="DEEPEN" onclick="filterReuse('DEEPEN',this)">DEEPEN</button>
+      </div>
+
+      <div id="reuse-table"></div>
+
+      <h2 style="margin:24px 0 12px">Новые навыки для Apollo</h2>
+      <div id="reuse-new-skills"></div>
+    </div>
+
+    <!-- GUIDE -->
+    <div id="page-guide" class="page hidden">
+      <h1>Как пользоваться SalesRadar</h1>
+      <p style="color:var(--text-dim);margin-bottom:20px">Пошаговое руководство по работе с платформой</p>
+
+      <div class="card" style="margin-bottom:20px;padding:16px">
+        <div style="font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Customer Journey Map</div>
+        <div id="guide-steps-nav" style="display:flex;align-items:center;gap:8px;overflow-x:auto;padding:8px 0"></div>
+      </div>
+
+      <div id="guide-step-detail"></div>
+
+      <div class="card" style="margin-top:24px">
+        <div style="padding:16px;border-bottom:1px solid var(--border)"><h2 style="font-size:16px">Краткая справка</h2></div>
+        <div style="padding:16px">
+          <table>
+            <thead><tr><th>Раздел</th><th>Что делает</th><th>Как попасть</th></tr></thead>
+            <tbody>
+              <tr><td style="font-weight:600">Dashboard</td><td>Общая аналитика по всем рассылкам</td><td>Боковое меню → Dashboard</td></tr>
+              <tr><td style="font-weight:600">Companies</td><td>Поиск и фильтрация компаний</td><td>Боковое меню → Компании</td></tr>
+              <tr><td style="font-weight:600">Contacts</td><td>Контакты + обогащение</td><td>Боковое меню → Контакты</td></tr>
+              <tr><td style="font-weight:600">Sequences</td><td>Управление email-цепочками</td><td>Боковое меню → Sequences</td></tr>
+              <tr><td style="font-weight:600">Analytics</td><td>Детальная аналитика и топ-лиды</td><td>Боковое меню → Аналитика</td></tr>
+            </tbody>
+          </table>
+          <div style="margin-top:16px;padding:12px 16px;background:rgba(255,165,2,0.1);border:1px solid var(--warning);border-radius:var(--radius);font-size:13px;color:var(--warning)">
+            <strong>API-ключ:</strong> Используется для аутентификации. Храните его в безопасности. При утере обратитесь к администратору.
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -371,6 +428,8 @@ function navigate(page,e){
   if(page==='sequences')loadSequences();
   if(page==='analytics')loadAnalytics();
   if(page==='billing')loadBilling();
+  if(page==='reuse')renderReuse();
+  if(page==='guide')renderGuide();
 }
 
 // --- Dashboard ---
@@ -594,6 +653,133 @@ async function upgradePlan(plan){
 function showModal(id){document.getElementById('modal-'+id).classList.add('show')}
 function closeModals(){document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('show'))}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModals()});
+
+// --- Reuse / Knowledge Base ---
+const REUSE_DATA=[
+  {project:'W1 Cleo',projectFull:'Cleo AI Assistant',feature:'GPT-4 API integration (openai SDK, system/user промпты)',status:'USE',description:'Интеграция с OpenAI API: system/user промпты, обработка ответов, fallback на шаблоны',apolloUsage:'Генерация персонализированных cold email через GPT-4'},
+  {project:'W2 Whoop',projectFull:'Whoop Health Tracker',feature:'SQLAlchemy 2.0 async (модели, сессии, Alembic)',status:'DEEPEN',description:'Async ORM: mapped_column, relationship, async_sessionmaker, миграции',apolloUsage:'Сложные JOIN (Company→Contact→Sequence), подзапросы, оптимизация N+1'},
+  {project:'W2 Whoop',projectFull:'Whoop Health Tracker',feature:'PostgreSQL (таблицы, запросы, индексы)',status:'DEEPEN',description:'Создание таблиц, базовые запросы, простые индексы',apolloUsage:'EXPLAIN ANALYZE, индексы на JSON-полях, materialized views, full-text search'},
+  {project:'W2 Whoop',projectFull:'Whoop Health Tracker',feature:'Scoring engine (расчёт числовых метрик из данных)',status:'USE',description:'Вычисление скоринговых метрик на основе входных данных',apolloUsage:'Lead scoring engine — Company Score на основе firmographics + technographics'},
+  {project:'W3 Substack',projectFull:'Substack Clone',feature:'FastAPI (роуты, Depends, Pydantic модели)',status:'DEEPEN',description:'Базовый FastAPI: один роутер, простые модели, DI через Depends',apolloUsage:'APIRouter, многофайловая структура, lifespan events, middleware'},
+  {project:'W3 Substack',projectFull:'Substack Clone',feature:'pydantic-settings (BaseSettings, .env)',status:'USE',description:'Конфигурация через переменные окружения с pydantic-settings',apolloUsage:'Управление секретами: API keys, database URLs, feature flags'},
+  {project:'W4 Instantly',projectFull:'Instantly.ai Clone',feature:'pytest & testing (pytest-asyncio, моки)',status:'USE',description:'Async тестирование, мокирование внешних API, fixtures',apolloUsage:'Тестирование авторизации, моки OpenAI API, интеграционные тесты'},
+  {project:'W4 Instantly',projectFull:'Instantly.ai Clone',feature:'GPT-4 structured output (JSON mode)',status:'USE',description:'Получение структурированных ответов от GPT-4 в JSON формате',apolloUsage:'Embeddings для семантического поиска компаний, structured email output'},
+  {project:'W4 Instantly',projectFull:'Instantly.ai Clone',feature:'B2B-контакты, email-генерация, bulk операции',status:'USE',description:'Управление контактами, генерация писем, массовые операции',apolloUsage:'Contact enrichment, email-последовательности, bulk enrich'},
+];
+const NEW_SKILLS=[
+  {name:'JWT Authentication',description:'python-jose, access/refresh токены, роли admin/user',details:'Полноценная аутентификация с ролевой моделью вместо простого API-ключа',technologies:['python-jose','passlib','bcrypt']},
+];
+
+let reuseFilter='all';
+let reuseExpanded=null;
+
+function filterReuse(status,btn){
+  reuseFilter=status;reuseExpanded=null;
+  document.querySelectorAll('.reuse-filter').forEach(b=>{b.className=b===btn?'btn-primary reuse-filter active':'btn-ghost reuse-filter'});
+  renderReuseTable();
+}
+
+function toggleReuseRow(idx){reuseExpanded=reuseExpanded===idx?null:idx;renderReuseTable()}
+
+function renderReuse(){
+  const useCount=REUSE_DATA.filter(i=>i.status==='USE').length;
+  const deepenCount=REUSE_DATA.filter(i=>i.status==='DEEPEN').length;
+  document.getElementById('reuse-stat-use').textContent=useCount;
+  document.getElementById('reuse-stat-deepen').textContent=deepenCount;
+  document.getElementById('reuse-stat-new').textContent=NEW_SKILLS.length;
+  renderReuseTable();
+  document.getElementById('reuse-new-skills').innerHTML=NEW_SKILLS.map(s=>`
+    <div class="card" style="border-left:3px solid var(--warning)">
+      <div style="padding:16px">
+        <div style="font-weight:700;margin-bottom:4px">${s.name}</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-bottom:4px">${s.description}</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px">${s.details}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${s.technologies.map(t=>`<span class="badge badge-warm">${t}</span>`).join('')}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderReuseTable(){
+  const filtered=reuseFilter==='all'?REUSE_DATA:REUSE_DATA.filter(i=>i.status===reuseFilter);
+  const statusColors={USE:{bg:'rgba(0,212,170,0.15)',color:'var(--accent)'},DEEPEN:{bg:'rgba(108,99,255,0.15)',color:'var(--primary-light)'},NEW:{bg:'rgba(255,165,2,0.15)',color:'var(--warning)'}};
+  document.getElementById('reuse-table').innerHTML=`
+    <table><thead><tr><th>Проект</th><th>Фича / Паттерн</th><th>Статус</th><th>Применение в Apollo</th></tr></thead><tbody>
+    ${filtered.map((item,idx)=>{
+      const sc=statusColors[item.status];
+      const expanded=reuseExpanded===idx;
+      return `<tr onclick="toggleReuseRow(${idx})" style="cursor:pointer;${expanded?'background:rgba(108,99,255,0.08)':''}">
+        <td><div style="font-weight:600">${item.project}</div>${expanded?'<div style="font-size:11px;color:var(--text-dim);margin-top:4px">'+item.projectFull+'</div>':''}</td>
+        <td><div>${item.feature}</div>${expanded?'<div style="margin-top:8px;padding:8px;background:var(--bg);border-radius:var(--radius);font-size:13px;color:var(--text-dim);line-height:1.5">'+item.description+'</div>':''}</td>
+        <td><span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;background:${sc.bg};color:${sc.color};letter-spacing:0.5px">${item.status}</span></td>
+        <td>${item.apolloUsage}</td>
+      </tr>`;
+    }).join('')}
+    </tbody></table>
+    <p style="margin-top:8px;font-size:12px;color:var(--text-dim)">${filtered.length} паттернов</p>`;
+}
+
+// --- Guide ---
+const CJM_STEPS=[
+  {number:1,title:'Поиск компаний',description:'Найдите целевые компании по отрасли, региону и размеру.',details:['Откройте раздел Компании в боковом меню','Используйте поле поиска для быстрого поиска по названию или ИНН','Применяйте фильтры: ОКВЭД, регион, диапазон сотрудников, выручка','Фильтры работают в реальном времени','Кликните «Поиск» для отображения результатов'],action:{label:'Перейти к поиску',page:'companies'},tip:'Попробуйте фильтр ОКВЭД "62.01" — это разработка ПО, или "64.19" — банки.'},
+  {number:2,title:'Изучение компании',description:'Просмотрите информацию о компании: ИНН, ОКВЭД, регион, сотрудники, выручка.',details:['В таблице отображаются все публичные реквизиты','ИНН, ОКВЭД, регион, количество сотрудников, диапазон выручки','Intent Score показывает «горячесть» компании','Используйте фильтры для сужения выборки'],tip:'Обратите внимание на количество сотрудников — это помогает оценить масштаб сделки.'},
+  {number:3,title:'Работа с контактами',description:'Получите контакты ЛПР в компании.',details:['Перейдите в раздел Контакты','Используйте поиск по имени или email','Фильтруйте по Seniority (c_level, vp, director и т.д.)','Нажмите «Детали» для просмотра полной информации','Кнопка «Score» рассчитывает Lead Score контакта','Кнопка «Enrich» обогащает данные (стоит 1 кредит)'],action:{label:'Перейти к контактам',page:'contacts'},tip:'Кредиты расходуются за каждый запрос обогащения, а не за каждый контакт.'},
+  {number:4,title:'Email Sequences',description:'Создайте автоматическую цепочку follow-up писем.',details:['Откройте Sequences в боковом меню','Нажмите «Создать sequence» и дайте название','Добавьте шаги: тема, текст, задержка в днях','Можно добавить несколько шагов кнопкой «+ Добавить шаг»','Используйте переменные {first_name}, {company} в шаблонах','Управляйте статусом: Active / Paused'],action:{label:'Перейти к последовательностям',page:'sequences'},tip:'Рекомендуемая цепочка: 3-5 шагов с интервалом 2-3 дня между письмами.'},
+  {number:5,title:'Аналитика',description:'Анализируйте эффективность рассылок.',details:['Dashboard показывает общую статистику','Аналитика — детальные метрики: sent, opened, replied','Топ-10 лидов по Score — лучшие контакты','Open Rate и Reply Rate — ключевые показатели','Статусы контактов: active, replied, bounced, completed'],action:{label:'Перейти к аналитике',page:'analytics'},tip:'Reply rate выше 5% — хороший показатель для cold outreach в B2B.'},
+  {number:6,title:'Биллинг',description:'Управляйте подпиской и кредитами.',details:['Текущий план и баланс кредитов отображаются на странице Биллинг','Доступны тарифы: Free, Pro, Agency','Обновление плана мгновенно добавляет кредиты','Кредиты расходуются на обогащение контактов','Баланс всегда видно в боковой панели'],action:{label:'Перейти к биллингу',page:'billing'},tip:'На бесплатном плане доступно 50 кредитов для старта.'},
+];
+
+let guideExpandedStep=1;
+
+function toggleGuideStep(num){guideExpandedStep=guideExpandedStep===num?null:num;renderGuideDetail()}
+
+function renderGuide(){
+  document.getElementById('guide-steps-nav').innerHTML=CJM_STEPS.map((step,idx)=>`
+    <div style="display:flex;align-items:center;gap:8px">
+      <button onclick="toggleGuideStep(${step.number})" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 16px;border:2px solid ${guideExpandedStep===step.number?'var(--primary)':'var(--border)'};border-radius:12px;background:${guideExpandedStep===step.number?'rgba(108,99,255,0.1)':'var(--bg2)'};cursor:pointer;min-width:120px;transition:all .2s">
+        <span style="width:32px;height:32px;border-radius:50%;background:${guideExpandedStep===step.number?'var(--primary)':'var(--bg)'};color:${guideExpandedStep===step.number?'#fff':'var(--text-dim)'};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">${step.number}</span>
+        <span style="font-size:11px;font-weight:600;color:${guideExpandedStep===step.number?'var(--primary-light)':'var(--text-dim)'};text-align:center;line-height:1.3">${step.title}</span>
+      </button>
+      ${idx<CJM_STEPS.length-1?'<span style="color:var(--text-dim);font-size:18px">→</span>':''}
+    </div>
+  `).join('');
+  renderGuideDetail();
+}
+
+function renderGuideDetail(){
+  document.getElementById('guide-steps-nav').innerHTML=CJM_STEPS.map((step,idx)=>`
+    <div style="display:flex;align-items:center;gap:8px">
+      <button onclick="toggleGuideStep(${step.number})" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 16px;border:2px solid ${guideExpandedStep===step.number?'var(--primary)':'var(--border)'};border-radius:12px;background:${guideExpandedStep===step.number?'rgba(108,99,255,0.1)':'var(--bg2)'};cursor:pointer;min-width:120px;transition:all .2s">
+        <span style="width:32px;height:32px;border-radius:50%;background:${guideExpandedStep===step.number?'var(--primary)':'var(--bg)'};color:${guideExpandedStep===step.number?'#fff':'var(--text-dim)'};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">${step.number}</span>
+        <span style="font-size:11px;font-weight:600;color:${guideExpandedStep===step.number?'var(--primary-light)':'var(--text-dim)'};text-align:center;line-height:1.3">${step.title}</span>
+      </button>
+      ${idx<CJM_STEPS.length-1?'<span style="color:var(--text-dim);font-size:18px">→</span>':''}
+    </div>
+  `).join('');
+
+  const step=CJM_STEPS.find(s=>s.number===guideExpandedStep);
+  if(!step){document.getElementById('guide-step-detail').innerHTML='';return}
+  document.getElementById('guide-step-detail').innerHTML=`
+    <div class="card">
+      <div style="padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">
+        <span style="width:40px;height:40px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;flex-shrink:0">${step.number}</span>
+        <div>
+          <h2 style="font-size:16px;margin-bottom:2px">${step.title}</h2>
+          <span style="font-size:13px;color:var(--text-dim)">${step.description}</span>
+        </div>
+      </div>
+      <div style="padding:16px">
+        <ol style="padding-left:20px;margin-bottom:16px">
+          ${step.details.map(d=>`<li style="margin-bottom:8px;line-height:1.6;font-size:14px">${d}</li>`).join('')}
+        </ol>
+        ${step.tip?`<div style="padding:12px 16px;background:rgba(108,99,255,0.1);border:1px solid var(--primary);border-radius:var(--radius);margin-bottom:16px;font-size:13px;color:var(--primary-light)"><strong>Совет:</strong> ${step.tip}</div>`:''}
+        <div style="display:flex;gap:8px">
+          ${step.action?`<button class="btn-primary" onclick="navigate('${step.action.page}')">${step.action.label}</button>`:''}
+          ${step.number<CJM_STEPS.length?`<button class="btn-ghost" onclick="guideExpandedStep=${step.number+1};renderGuideDetail()">Следующий шаг →</button>`:''}
+        </div>
+      </div>
+    </div>`;
+}
 
 // --- Init ---
 window.addEventListener('DOMContentLoaded',()=>{
