@@ -579,7 +579,10 @@ async function showCompanyDetail(id){
         <div class="card" style="padding:12px"><div class="label">Выручка</div><div style="font-weight:600;font-size:15px;margin-top:4px">${company.revenue_range||'—'}</div></div>
         ${company.website?'<div class="card" style="padding:12px"><div class="label">Сайт</div><div style="font-size:13px;margin-top:4px"><a href="'+company.website+'" target="_blank">'+company.website+'</a></div></div>':''}
       </div>
-      <h3 style="margin-bottom:12px">Контакты (${contacts.length})</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3>Контакты (${contacts.length})</h3>
+        <button class="btn-accent" style="font-size:12px;padding:6px 12px" onclick="event.stopPropagation();openAddContactForCompany(${id},'${company.name.replace(/'/g,"\\'")}')">+ Добавить контакт</button>
+      </div>
       ${contacts.length?`
         <table><thead><tr><th>Имя</th><th>Email</th><th>Должность</th><th>Телефон</th><th>Score</th><th>Действия</th></tr></thead><tbody>
         ${contacts.map(c=>`<tr>
@@ -609,6 +612,26 @@ async function enrichContactFromCompany(contactId,companyId){
   try{await apiFetch('/contacts/'+contactId+'/enrich','POST');await loadUser();showCompanyDetail(companyId)}catch(e){alert(e.message)}
 }
 
+let addContactForCompanyId=null;
+function openAddContactForCompany(companyId,companyName){
+  addContactForCompanyId=companyId;
+  closeModals();
+  // Reset form
+  document.getElementById('nc-email').value='';
+  document.getElementById('nc-first').value='';
+  document.getElementById('nc-last').value='';
+  document.getElementById('nc-title').value='';
+  document.getElementById('nc-seniority').value='';
+  document.getElementById('nc-linkedin').value='';
+  document.getElementById('nc-phone').value='';
+  // Show company context
+  let header=document.getElementById('nc-company-header');
+  if(!header){header=document.createElement('div');header.id='nc-company-header';header.style.cssText='margin-bottom:12px;padding:8px 12px;background:var(--bg3);border-radius:var(--radius);font-size:13px;color:var(--primary-light)';document.querySelector('#modal-add-contact .modal').insertBefore(header,document.querySelector('#modal-add-contact .modal').children[1])}
+  header.textContent='Компания: '+companyName;
+  header.style.display='block';
+  showModal('add-contact');
+}
+
 async function createCompany(){
   const body={name:document.getElementById('mc-name').value};
   const inn=document.getElementById('mc-inn').value;if(inn)body.inn=inn;
@@ -618,7 +641,7 @@ async function createCompany(){
   const emp=document.getElementById('mc-employees').value;if(emp)body.employee_count=parseInt(emp);
   const web=document.getElementById('mc-website').value;if(web)body.website=web;
   if(!body.name){alert('Название обязательно');return}
-  try{await apiFetch('/companies','POST',body);closeModals();searchCompanies()}catch(e){alert(e.message)}
+  try{await apiFetch('/companies/','POST',body);closeModals();searchCompanies()}catch(e){alert(e.message)}
 }
 
 // --- Contacts ---
@@ -646,13 +669,21 @@ async function loadContacts(){
 async function createContact(){
   const body={email:document.getElementById('nc-email').value};
   if(!body.email){alert('Email обязателен');return}
+  if(addContactForCompanyId)body.company_id=addContactForCompanyId;
   const fn=document.getElementById('nc-first').value;if(fn)body.first_name=fn;
   const ln=document.getElementById('nc-last').value;if(ln)body.last_name=ln;
   const t=document.getElementById('nc-title').value;if(t)body.title=t;
   const s=document.getElementById('nc-seniority').value;if(s)body.seniority=s;
   const li=document.getElementById('nc-linkedin').value;if(li)body.linkedin_url=li;
   const ph=document.getElementById('nc-phone').value;if(ph)body.phone=ph;
-  try{await apiFetch('/contacts','POST',body);closeModals();loadContacts()}catch(e){alert(e.message)}
+  const companyId=addContactForCompanyId;
+  try{
+    await apiFetch('/contacts/','POST',body);
+    closeModals();
+    if(companyId){addContactForCompanyId=null;showCompanyDetail(companyId)}
+    else{loadContacts()}
+  }catch(e){alert(e.message)}
+  finally{addContactForCompanyId=null;const h=document.getElementById('nc-company-header');if(h)h.style.display='none'}
 }
 
 async function scoreContact(id){
@@ -752,7 +783,7 @@ async function createSequence(){
   const delays=document.querySelectorAll('.ns-delay');
   const steps=[];
   subjects.forEach((s,i)=>{if(s.value&&bodies[i].value)steps.push({step_order:i+1,subject_template:s.value,body_template:bodies[i].value,delay_days:parseInt(delays[i].value)||0})});
-  try{await apiFetch('/sequences','POST',{name,description:desc||null,steps});closeModals();stepCount=1;loadSequences()}catch(e){alert(e.message)}
+  try{await apiFetch('/sequences/','POST',{name,description:desc||null,steps});closeModals();stepCount=1;loadSequences()}catch(e){alert(e.message)}
 }
 
 async function toggleSequence(id){try{await apiFetch('/sequences/'+id+'/toggle','PATCH');loadSequences()}catch(e){alert(e.message)}}

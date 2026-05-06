@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-4"
     OPENAI_TIMEOUT: float = 30.0
     PAYMENTS_STUB: bool = True
+    RESEND_API_KEY: str = ""
+    RESEND_FROM_EMAIL: str = "onboarding@resend.dev"
     YOOKASSA_SHOP_ID: str = ""
     YOOKASSA_API_KEY: str = ""
     APP_NAME: str = "SalesRadar"

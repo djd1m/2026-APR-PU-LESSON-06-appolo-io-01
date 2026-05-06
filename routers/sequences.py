@@ -14,8 +14,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import settings
-from models.database import Sequence, SequenceStep, User, get_db
+from models.database import Sequence, SequenceStep, Contact, Activity, ActivityType, User, get_db
 from routers.auth import get_current_user
+from services.email_sender import email_sender
 
 logger = logging.getLogger(__name__)
 
@@ -192,6 +193,94 @@ async def add_step(
     await db.commit()
     await db.refresh(step)
     return step
+
+
+class SendEmailRequest(BaseModel):
+    contact_id: int
+    step_order: int = 1
+
+
+class SendEmailResponse(BaseModel):
+    success: bool
+    resend_id: Optional[str] = None
+    error: Optional[str] = None
+    to: str
+    subject: str
+
+
+@router.post("/{sequence_id}/send", response_model=SendEmailResponse)
+async def send_sequence_email(
+    sequence_id: int,
+    payload: SendEmailRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Send a specific sequence step email to a contact via Resend."""
+    if not email_sender.is_configured():
+        raise HTTPException(status_code=503, detail="Resend API key not configured. Add RESEND_API_KEY to .env")
+
+    # Get sequence step
+    step_result = await db.execute(
+        select(SequenceStep)
+        .where(SequenceStep.sequence_id == sequence_id, SequenceStep.step_order == payload.step_order)
+    )
+    step = step_result.scalar_one_or_none()
+    if not step:
+        raise HTTPException(status_code=404, detail=f"Step {payload.step_order} not found in sequence {sequence_id}")
+
+    # Get contact with company
+    contact_result = await db.execute(select(Contact).where(Contact.id == payload.contact_id))
+    contact = contact_result.scalar_one_or_none()
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
+
+    # Personalize templates
+    variables = {
+        "first_name": contact.first_name or "",
+        "last_name": contact.last_name or "",
+        "email": contact.email,
+        "title": contact.title or "",
+        "company": "",
+    }
+    try:
+        from models.database import Company
+        if contact.company_id:
+            company_result = await db.execute(select(Company).where(Company.id == contact.company_id))
+            company = company_result.scalar_one_or_none()
+            if company:
+                variables["company"] = company.name
+    except Exception:
+        pass
+
+    subject = step.subject_template.format_map({k: v for k, v in variables.items()})
+    body = step.body_template.format_map({k: v for k, v in variables.items()})
+
+    # Send via Resend
+    result = email_sender.send_email(to=contact.email, subject=subject, body=body)
+
+    # Log activity
+    activity = Activity(
+        contact_id=contact.id,
+        company_id=contact.company_id,
+        activity_type=ActivityType.email_sent,
+        metadata_={
+            "sequence_id": sequence_id,
+            "step_order": payload.step_order,
+            "subject": subject,
+            "resend_id": result.resend_id,
+            "success": result.success,
+        },
+    )
+    db.add(activity)
+    await db.commit()
+
+    return SendEmailResponse(
+        success=result.success,
+        resend_id=result.resend_id,
+        error=result.error,
+        to=contact.email,
+        subject=subject,
+    )
 
 
 @router.patch("/{sequence_id}/toggle")
