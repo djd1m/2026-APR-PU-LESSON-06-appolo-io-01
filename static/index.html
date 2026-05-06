@@ -554,13 +554,32 @@ async function loadDashboard(){
     const icons={hiring:'hiring',tender:'tender',revenue_growth:'revenue',new_ceo:'ceo',media_mention:'media'};
     const emojis={hiring:'👥',tender:'📋',revenue_growth:'📈',new_ceo:'🔄',media_mention:'📰'};
     document.getElementById('hot-signals').innerHTML=signals.map(s=>`
-      <div class="signal-item">
+      <div class="signal-item" style="cursor:pointer" onclick="openSignalCompany('${s.company.replace(/'/g,"\\'")}','${s.inn||''}')">
         <div class="signal-icon ${icons[s.type]||'hiring'}">${emojis[s.type]||'🔔'}</div>
         <div class="signal-title"><div class="name">${s.company}</div><div class="desc">${s.title}</div><div style="font-size:11px;color:var(--text-dim);margin-top:2px">${s.source} · ${new Date(s.detected_at).toLocaleDateString('ru')}</div></div>
         <div class="signal-score" style="color:${s.strength>=80?'var(--danger)':s.strength>=60?'var(--warning)':'var(--accent)'}">${s.strength}</div>
       </div>
     `).join('');
   }catch(e){console.error(e)}
+}
+
+async function openSignalCompany(name,inn){
+  try{
+    // Try to find by INN first, then by name
+    let data;
+    if(inn){data=await apiFetch('/companies/search?q='+encodeURIComponent(inn)+'&per_page=1')}
+    if(!data||!data.items.length){data=await apiFetch('/companies/search?q='+encodeURIComponent(name)+'&per_page=5')}
+    if(data.items.length){
+      showCompanyDetail(data.items[0].id);
+    }else{
+      if(confirm('Компания «'+name+'» не найдена в базе. Создать?')){
+        const body={name};
+        if(inn)body.inn=inn;
+        const c=await apiFetch('/companies/','POST',body);
+        showCompanyDetail(c.id);
+      }
+    }
+  }catch(e){alert(e.message)}
 }
 
 // --- Companies ---
