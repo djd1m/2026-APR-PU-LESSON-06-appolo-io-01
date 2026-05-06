@@ -354,6 +354,13 @@ tr:hover td{background:rgba(108,99,255,0.05)}
 <div class="modal-overlay" id="modal-add-sequence">
   <div class="modal">
     <h2>Создать Sequence</h2>
+    <div style="background:linear-gradient(135deg,rgba(108,99,255,0.1),rgba(0,212,170,0.1));border:1px solid var(--primary);border-radius:var(--radius);padding:12px;margin-bottom:16px">
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="ns-ai-goal" style="flex:1;font-size:14px" placeholder="Опишите цель, например: «холодная рассылка для IT-директоров» или «follow-up после конференции»">
+        <button class="btn-accent" onclick="aiGenerateSequence()" id="ns-ai-btn" style="white-space:nowrap;padding:8px 16px">AI Заполнить</button>
+      </div>
+      <div id="ns-ai-status" style="font-size:12px;margin-top:6px;color:var(--text-dim)"></div>
+    </div>
     <div class="form-row"><label>Название *</label><input id="ns-name" placeholder="Cold outreach IT companies"></div>
     <div class="form-row"><label>Описание</label><textarea id="ns-desc" rows="2"></textarea></div>
     <h3 style="margin:12px 0 8px;font-size:14px">Шаги</h3>
@@ -670,6 +677,33 @@ function addSequenceStep(){
   const div=document.createElement('div');div.className='step-card';
   div.innerHTML=`<div class="step-num">Шаг ${stepCount}</div><div class="form-row"><label>Тема</label><input class="ns-subject"></div><div class="form-row"><label>Текст</label><textarea class="ns-body" rows="3"></textarea></div><div class="form-row"><label>Задержка (дней)</label><input class="ns-delay" type="number" value="${stepCount}"></div>`;
   document.getElementById('ns-steps').appendChild(div);
+}
+
+async function aiGenerateSequence(){
+  const goal=document.getElementById('ns-ai-goal').value.trim();
+  if(!goal){alert('Опишите цель рассылки');return}
+  const btn=document.getElementById('ns-ai-btn');
+  const statusEl=document.getElementById('ns-ai-status');
+  btn.disabled=true;btn.textContent='Генерирую...';
+  statusEl.textContent='AI создаёт sequence...';statusEl.style.color='var(--primary-light)';
+  try{
+    const data=await apiFetch('/sequences/ai-generate','POST',{goal});
+    // Fill name and description
+    document.getElementById('ns-name').value=data.name;
+    document.getElementById('ns-desc').value=data.description;
+    // Clear existing steps and recreate
+    const stepsContainer=document.getElementById('ns-steps');
+    stepsContainer.innerHTML='';
+    stepCount=0;
+    data.steps.forEach((step,i)=>{
+      stepCount++;
+      const div=document.createElement('div');div.className='step-card';
+      div.innerHTML=`<div class="step-num">Шаг ${step.step_order}</div><div class="form-row"><label>Тема</label><input class="ns-subject" value="${step.subject_template.replace(/"/g,'&quot;')}"></div><div class="form-row"><label>Текст</label><textarea class="ns-body" rows="3">${step.body_template}</textarea></div><div class="form-row"><label>Задержка (дней)</label><input class="ns-delay" type="number" value="${step.delay_days}"></div>`;
+      stepsContainer.appendChild(div);
+    });
+    statusEl.textContent='Готово! Проверьте и нажмите «Создать»';statusEl.style.color='var(--accent)';
+  }catch(e){statusEl.textContent=e.message;statusEl.style.color='var(--danger)'}
+  finally{btn.disabled=false;btn.textContent='AI Заполнить'}
 }
 
 async function createSequence(){
