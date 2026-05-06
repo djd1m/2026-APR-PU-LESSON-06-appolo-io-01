@@ -181,6 +181,7 @@ tr:hover td{background:rgba(108,99,255,0.05)}
 
   <!-- Main content -->
   <div class="main">
+    <button id="guide-return-btn" onclick="returnToGuide()" style="display:none;align-items:center;position:sticky;top:0;z-index:5;width:100%;padding:10px 16px;margin-bottom:16px;background:linear-gradient(135deg,var(--bg3),var(--bg2));border:1px solid var(--primary);border-radius:var(--radius);color:var(--primary-light);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s"></button>
     <!-- DASHBOARD -->
     <div id="page-dashboard" class="page">
       <h1>Dashboard</h1>
@@ -439,8 +440,12 @@ async function apiFetch(path,method='GET',body=null){
 }
 
 // --- Navigation ---
+let guideReturnStep=null;
+
 function navigate(page,e){
   if(e)e.preventDefault();
+  if(page!=='guide')guideReturnStep=null; // clear when navigating manually (not from guide)
+  updateGuideReturnButton(page);
   document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
   document.getElementById('page-'+page).classList.remove('hidden');
   document.querySelectorAll('.sidebar nav a').forEach(a=>{a.classList.toggle('active',a.dataset.page===page)});
@@ -452,6 +457,38 @@ function navigate(page,e){
   if(page==='billing')loadBilling();
   if(page==='reuse')renderReuse();
   if(page==='guide')renderGuide();
+}
+
+function navigateFromGuide(page){
+  guideReturnStep=guideExpandedStep;
+  updateGuideReturnButton(page);
+  document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
+  document.getElementById('page-'+page).classList.remove('hidden');
+  document.querySelectorAll('.sidebar nav a').forEach(a=>{a.classList.toggle('active',a.dataset.page===page)});
+  if(page==='companies')searchCompanies();
+  if(page==='contacts')loadContacts();
+  if(page==='sequences')loadSequences();
+  if(page==='analytics')loadAnalytics();
+  if(page==='billing')loadBilling();
+}
+
+function returnToGuide(){
+  const step=guideReturnStep;
+  guideReturnStep=null;
+  if(step)guideExpandedStep=step;
+  navigate('guide');
+}
+
+function updateGuideReturnButton(page){
+  const btn=document.getElementById('guide-return-btn');
+  if(!btn)return;
+  if(guideReturnStep && page!=='guide'){
+    const stepData=CJM_STEPS.find(s=>s.number===guideReturnStep);
+    btn.innerHTML='<span style="margin-right:6px">📖</span> Вернуться к руководству — Шаг '+guideReturnStep+(stepData?': '+stepData.title:'');
+    btn.style.display='flex';
+  }else{
+    btn.style.display='none';
+  }
 }
 
 // --- Dashboard ---
@@ -893,7 +930,7 @@ function renderGuideDetail(){
         </ol>
         ${step.tip?`<div style="padding:12px 16px;background:rgba(108,99,255,0.1);border:1px solid var(--primary);border-radius:var(--radius);margin-bottom:16px;font-size:13px;color:var(--primary-light)"><strong>Совет:</strong> ${step.tip}</div>`:''}
         <div style="display:flex;gap:8px">
-          ${step.action?`<button class="btn-primary" onclick="navigate('${step.action.page}')">${step.action.label}</button>`:''}
+          ${step.action?`<button class="btn-primary" onclick="navigateFromGuide('${step.action.page}')">${step.action.label}</button>`:''}
           ${step.number<CJM_STEPS.length?`<button class="btn-ghost" onclick="guideExpandedStep=${step.number+1};renderGuideDetail()">Следующий шаг →</button>`:''}
         </div>
       </div>
